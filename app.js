@@ -588,17 +588,6 @@ function sheet(title, items) {
 }
 
 /* ---------- Login und Shell ---------- */
-function langSwitch() {
-  return `<div class="seg small" id="seg-lang">${[['de', 'Deutsch'], ['en', 'English']].map(([v, l]) =>
-    `<button type="button" data-v="${v}" class="${LANG === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-}
-function bindLang(rerender) {
-  const el = $('#seg-lang'); if (!el) return;
-  el.addEventListener('click', e => {
-    const b = e.target.closest('[data-v]'); if (!b) return;
-    setPref('lang', b.dataset.v); rerender();
-  });
-}
 function renderLogin() {
   $('#app').innerHTML = `<div class="login">
     <div class="lhead"><h1 class="brand2" aria-label="Wardley mAPP inspired by Andrea"><svg viewBox="0 0 240 86" role="img" aria-hidden="true">
@@ -611,13 +600,7 @@ function renderLogin() {
       <div class="error" id="le"></div>
       <button class="btn dark block">${t('Anmelden')}</button>
     </form>
-    <button type="button" class="linkbtn" id="first">${t('Zum ersten Mal hier?')}</button>
-    <p class="hint" id="firsthint" hidden>${t('Dein Konto legt ein Admin an. Deine PIN sind die letzten 6 Ziffern deiner Mobilnummer, solange kein Admin sie geändert hat.')}</p>
-    ${CFG.BACKEND === 'supabase' ? '' : `<p class="hint">${t('Prototyp: Daten liegen nur in diesem Browser.')}<br>Demo: 079 111 11 11 (Admin) · 079 222 22 22 (Anna) · 079 333 33 33 (Ben), PIN 111111, 222222, 333333</p>`}
-    <div class="center">${langSwitch()}</div>
   </div>`;
-  bindLang(renderLogin);
-  $('#first').onclick = () => { $('#firsthint').hidden = !$('#firsthint').hidden; };
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
     const phone = composePhone($('#lcc').value, $('#ln').value);
