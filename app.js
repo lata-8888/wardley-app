@@ -651,7 +651,7 @@ function renderLogin() {
       <div class="error" id="le"></div>
       <button class="btn dark block">${t('Anmelden')}</button>
     </form>
-    <p style="text-align:center;margin-top:18px;font-size:.8rem;color:var(--muted)">v${APP_VERSION}</p>
+    <p style="text-align:center;margin-top:18px;font-size:.8rem;color:var(--muted)">v${APP_VERSION} · ${CFG.BACKEND === 'supabase' ? 'Supabase' : t('Nur in diesem Browser')}</p>
   </div>`;
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
