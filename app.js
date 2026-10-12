@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -117,7 +117,17 @@ const fmtPhone = phone => {
 
 /* ---------- Geometrie und Rendering der Map ---------- */
 const STAGES = ['Genesis', 'Custom built', 'Product', 'Commodity'];
-const G = { W: 1000, H: 640, X0: 90, X1: 970, Y0: 30, Y1: 560 };
+/* Einfache Linien-Symbole (24×24) für die Map: Sichtbarkeit und Entwicklungsstufen */
+const MAP_ICONS = {
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>',
+  Genesis: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  'Custom built': '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  Product: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
+  Commodity: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>'
+};
+const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#5f5e5a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
+const G = { W: 1000, H: 660, X0: 90, X1: 970, Y0: 30, Y1: 560 };
 const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
@@ -141,12 +151,14 @@ function mapSvg(data, o) {
   }
   s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X0}" y2="${G.Y1}" stroke="#888780" stroke-width="1.5"/>`;
   s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X1}" y2="${G.Y1}" stroke="#888780" stroke-width="1.5"/>`;
-  s += `<text x="10" y="${G.Y0 + 12}" font-size="12" fill="#5f5e5a">${t('Sichtbar')}</text>`;
-  s += `<text x="10" y="${G.Y1 - 4}" font-size="12" fill="#5f5e5a">${t('Unsichtbar')}</text>`;
+  s += mapIcon('eye', 30, G.Y0, 32, t('Sichtbar'));
+  s += mapIcon('eyeoff', 30, G.Y1 - 34, 32, t('Unsichtbar'));
   STAGES.forEach((n, i) => {
-    s += `<text x="${G.X0 + colW * i + colW / 2}" y="${G.Y1 + 26}" font-size="13" text-anchor="middle" fill="#5f5e5a">${esc(n)}</text>`;
+    const cx = G.X0 + colW * i + colW / 2;
+    s += mapIcon(n, cx - 16, G.Y1 + 6, 32, n);
+    s += `<text x="${cx}" y="${G.Y1 + 58}" font-size="14" text-anchor="middle" fill="#5f5e5a">${esc(n)}</text>`;
   });
-  s += `<text x="${G.X1}" y="${G.Y1 + 54}" font-size="12" text-anchor="end" fill="#5f5e5a">${t('Evolution')} →</text>`;
+  s += `<text x="${G.X1}" y="${G.Y1 + 84}" font-size="12" text-anchor="end" fill="#5f5e5a">${t('Evolution')} →</text>`;
   links.forEach(l => {
     const a = by[l.from], b = by[l.to];
     if (a && b) s += `<line x1="${px(a.x)}" y1="${py(a.y)}" x2="${px(b.x)}" y2="${py(b.y)}" stroke="#888780" stroke-width="1.5"/>`;
@@ -598,7 +610,7 @@ const view = () => $('#view');
 /* ---------- Symbole ---------- */
 const ICON = {
   library: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
-  admin: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2 2M16.7 16.7l2 2M5.3 18.7l2-2M16.7 7.3l2-2"/>',
+  admin: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
