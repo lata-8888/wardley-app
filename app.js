@@ -5,9 +5,35 @@
 
 /* ---------- Helfer ---------- */
 const CFG = root.APP_CONFIG || { BACKEND: 'local' };
-const DICT = { en: {} };           // Übersetzungen: Schlüssel = deutscher Text
-const LANG = 'de';
+const DICT = root.WM_I18N || { en: {} };   // Übersetzungen (i18n.js): Schlüssel = deutscher Text
+const PREF_KEY = 'wm.prefs.v1';
+const prefs = { theme: 'auto', lang: 'de', wide: null };   // persönliche Einstellungen, nur in diesem Browser
+try {
+  const p = JSON.parse((root.localStorage && root.localStorage.getItem(PREF_KEY)) || '{}') || {};
+  if (['light', 'dark', 'auto'].includes(p.theme)) prefs.theme = p.theme;
+  if (p.lang === 'en' || p.lang === 'de') prefs.lang = p.lang;
+  if (typeof p.wide === 'boolean') prefs.wide = p.wide;
+} catch (e) { console.error(e); }
+let LANG = prefs.lang;
 const t = s => (DICT[LANG] && DICT[LANG][s]) || s;
+function applyTheme() {
+  if (typeof document === 'undefined') return;
+  const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && !!root.matchMedia && root.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.lang = LANG;
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', dark ? '#14181d' : '#f3f3ee');
+}
+/* Seitenbreite: 520 px (Handy-Spalte) oder 1100 px. Doppelklick auf die Kopfzeile wechselt; Designer startet breit. */
+let isMapRoute = false;
+const isWide = () => (prefs.wide === null ? isMapRoute : prefs.wide);
+function applyWidth() { if (typeof document !== 'undefined') document.body.classList.toggle('wide', isWide()); }
+function setPref(k, v) {
+  prefs[k] = v;
+  if (k === 'lang') LANG = v;
+  try { root.localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { console.error(e); }
+  applyTheme();
+}
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -17,8 +43,8 @@ const $ = (s, r) => (r || document).querySelector(s);
 const fmtDate = iso => {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
-      d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString(LANG === 'en' ? 'en-GB' : 'de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-CH', { hour: '2-digit', minute: '2-digit' });
   } catch (e) { return ''; }
 };
 
@@ -34,6 +60,21 @@ function normPhone(input) {
   if (!/^\+[1-9][0-9]{7,14}$/.test(s)) return null;
   if (s.startsWith('+41') && s.length !== 12) return null;
   return s;
+}
+/* Länderwahl + Eingabe → Nummer für normPhone(). Eingaben mit + oder 00 gelten immer als international. */
+const PHONE_CC = [{ c: '41', l: 'CH +41', ph: '79 123 45 67' }, { c: '49', l: 'DE +49', ph: '176 12345678' }];
+function composePhone(cc, raw) {
+  raw = String(raw || '').trim();
+  if (/^(\+|00)/.test(raw.replace(/\s/g, ''))) return raw;
+  if (!cc) return raw;
+  let d = raw.replace(/\(0\)/g, '').replace(/\D/g, '');
+  if (cc === '41' && d.length === 11 && d.indexOf('41') === 0) d = d.slice(2);
+  d = d.replace(/^0+/, '');
+  return d ? '+' + cc + d : '';
+}
+function phoneField(idCc, idNum) {
+  return `<div class="phonerow"><select id="${idCc}" class="phonecc" aria-label="${t('Land')}">${PHONE_CC.map(x => `<option value="${x.c}">${x.l}</option>`).join('')}<option value="">${t('Andere')}</option></select>
+    <input id="${idNum}" type="tel" inputmode="tel" autocomplete="${idNum === 'ln' ? 'username' : 'off'}" required maxlength="30" placeholder="79 123 45 67"></div>`;
 }
 const defaultPin = phone => String(phone || '').replace(/\D/g, '').slice(-6);   // letzte 6 Ziffern
 const phoneToEmail = phone => {
@@ -494,82 +535,205 @@ function download(name, text, type) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+const monthLabel = iso => {
+  try { return new Date(iso).toLocaleDateString(LANG === 'en' ? 'en-GB' : 'de-CH', { month: 'long', year: 'numeric' }); } catch (e) { return ''; }
+};
 const fileSafe = s => String(s).replace(/[^\w\-]+/g, '_').slice(0, 60) || 'map';
 const fail = e => { console.error(e); toast(e && e.message ? e.message : String(e)); };
 
 let cleanup = () => {};
 const view = () => $('#view');
 
+/* ---------- Symbole ---------- */
+const ICON = {
+  library: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+  admin: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2 2M16.7 16.7l2 2M5.3 18.7l2-2M16.7 7.3l2-2"/>',
+  chev: '<path d="M6 9l6 6 6-6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+  moon: '<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  more: '<circle class="f" cx="5" cy="12" r="1.7"/><circle class="f" cx="12" cy="12" r="1.7"/><circle class="f" cx="19" cy="12" r="1.7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>',
+  redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>',
+  select: '<path d="M5 3l14 8-6 2-2 6z"/>',
+  link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
+  node: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>',
+  open: '<path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/>',
+  share: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  download: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
+  save: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+  power: '<path d="M12 3v9M6.5 6.5a8 8 0 1011 0"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  logout: '<path d="M9 4H5a1 1 0 00-1 1v14a1 1 0 001 1h4M16 8l4 4-4 4M20 12H9"/>'
+};
+const ic = (n, cls) => `<svg class="ic ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ''}</svg>`;
+
+/* Aktionsmenü ("…"): unten als Sheet, auf grossen Bildschirmen zentriert */
+function sheet(title, items) {
+  const md = modal(`${title ? `<h2>${esc(title)}</h2>` : ''}<div class="menu">${items.map((it, i) =>
+    `<button class="mi ${it.danger ? 'danger' : ''}" data-i="${i}" ${it.id ? `id="${it.id}"` : ''} ${it.disabled ? 'disabled' : ''}>${ic(it.icon)}<span>${esc(it.label)}</span></button>`).join('')}<button class="mi close" data-close>${t('Schliessen')}</button></div>`);
+  md.el.classList.add('sheet');
+  md.el.addEventListener('click', e => {
+    const b = e.target.closest('[data-i]'); if (!b || b.disabled) return;
+    md.close(); items[+b.dataset.i].run();
+  });
+  return md;
+}
+
 /* ---------- Login und Shell ---------- */
+function langSwitch() {
+  return `<div class="seg small" id="seg-lang">${[['de', 'Deutsch'], ['en', 'English']].map(([v, l]) =>
+    `<button type="button" data-v="${v}" class="${LANG === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+}
+function bindLang(rerender) {
+  const el = $('#seg-lang'); if (!el) return;
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    setPref('lang', b.dataset.v); rerender();
+  });
+}
 function renderLogin() {
-  $('#app').innerHTML = `<div class="login"><div class="card">
-    <h1>${t('Wardley Maps')}</h1><p class="meta">${t('Anmelden mit Mobilnummer und PIN')}</p>
+  $('#app').innerHTML = `<div class="login">
+    <div class="lhead"><h1 class="brand2" aria-label="Wardley mAPP inspired by Andrea"><svg viewBox="0 0 240 86" role="img" aria-hidden="true">
+        <text x="0" y="47" textLength="240" lengthAdjust="spacingAndGlyphs" class="l1">Wardley mAPP</text>
+        <text x="0" y="78" textLength="240" lengthAdjust="spacingAndGlyphs" class="l2">inspired by Andrea</text></svg></h1><img class="logo-big" src="icons/logo.png" alt=""></div>
+    <p class="sub">${t('Melde dich mit deiner Mobilnummer an.')}</p>
     <form id="lf" autocomplete="off">
-      <label>${t('Mobilnummer')}<input id="ln" type="tel" inputmode="tel" autocomplete="username" placeholder="079 123 45 67" required maxlength="30" autofocus></label>
-      <label>${t('PIN')}<input id="lp" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="6" pattern="[0-9]{6}"></label>
+      <label>${t('Mobilnummer')}${phoneField('lcc', 'ln')}</label>
+      <label>${t('PIN (nur nötig, wenn ein Admin sie geändert hat)')}<input id="lp" class="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" pattern="[0-9]{6}" placeholder="······"></label>
       <div class="error" id="le"></div>
-      <button class="btn primary" style="width:100%;margin-top:6px">${t('Anmelden')}</button>
+      <button class="btn dark block">${t('Anmelden')}</button>
     </form>
-    <p class="hint">${t('Deine PIN sind die letzten 6 Ziffern deiner Mobilnummer, solange kein Admin sie geändert hat.')}</p>
+    <button type="button" class="linkbtn" id="first">${t('Zum ersten Mal hier?')}</button>
+    <p class="hint" id="firsthint" hidden>${t('Dein Konto legt ein Admin an. Deine PIN sind die letzten 6 Ziffern deiner Mobilnummer, solange kein Admin sie geändert hat.')}</p>
     ${CFG.BACKEND === 'supabase' ? '' : `<p class="hint">${t('Prototyp: Daten liegen nur in diesem Browser.')}<br>Demo: 079 111 11 11 (Admin) · 079 222 22 22 (Anna) · 079 333 33 33 (Ben), PIN 111111, 222222, 333333</p>`}
-  </div></div>`;
+    <div class="center">${langSwitch()}</div>
+  </div>`;
+  bindLang(renderLogin);
+  $('#first').onclick = () => { $('#firsthint').hidden = !$('#firsthint').hidden; };
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
-    try { await API.login($('#ln').value, $('#lp').value); route(); }
+    const phone = composePhone($('#lcc').value, $('#ln').value);
+    const pin = $('#lp').value.trim() || defaultPin(normPhone(phone));
+    try { await API.login(phone, pin); route(); }
     catch (err) { console.error(err); $('#le').textContent = err.message; }
   });
 }
 function shell(u) {
   const h = location.hash;
-  $('#app').innerHTML = `<header class="top">
-    <span class="brand">${t('Wardley Maps')}</span>
-    <nav><a href="#/library" class="${h.startsWith('#/admin') ? '' : 'on'}">${t('Library')}</a>${u.isAdmin ? `<a href="#/admin" class="${h.startsWith('#/admin') ? 'on' : ''}">${t('Admin')}</a>` : ''}</nav>
-    <div class="user"><span>${esc(u.name)}${u.isAdmin ? `<span class="badge">Admin</span>` : ''}</span><button class="btn small" id="logout">${t('Abmelden')}</button></div>
-  </header><main id="view"></main>`;
+  const cur = h.startsWith('#/admin') ? 'admin' : h.startsWith('#/profile') ? 'profile' : 'library';
+  const tabs = [['library', 'Library', '#/library']].concat(u.isAdmin ? [['admin', 'Admin', '#/admin']] : [], [['profile', 'Profil', '#/profile']]);
+  $('#app').innerHTML = `<header class="top" id="top"></header><main id="view"></main>
+    <nav class="tabbar" aria-label="${t('Hauptnavigation')}"><div class="in">${tabs.map(([k, l, href]) =>
+      `<a href="${href}" class="${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${t(l)}</span></a>`).join('')}</div></nav>`;
+}
+/* Kopfzeile: o.back = Link zurück, o.titleHtml = eigener Titel (z. B. Eingabefeld), o.right = Schaltflächen */
+function setTop(title, o) {
+  o = o || {};
+  $('#top').innerHTML = `${o.back ? `<a class="ibtn" href="${o.back}" aria-label="${t('Zurück')}">${ic('back')}</a>` : ''}
+    <div class="grow">${o.titleHtml || `<h1 class="pagetitle">${esc(title)}</h1>`}${o.sub ? `<div class="sub">${esc(o.sub)}</div>` : ''}</div><div class="tact">${o.right || ''}</div>`;
+  fitTitles();
+}
+/* Seitentitel verkleinern, bis er auf eine Zeile passt (wie bei FBRO) */
+function fitTitles() {
+  document.querySelectorAll('.pagetitle').forEach(el => {
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize) || 36;
+    while (el.scrollWidth > el.clientWidth + 1 && size > 15) { size -= 1; el.style.fontSize = size + 'px'; }
+  });
+}
+const iconBtn = (id, icon, label, extra) => `<button ${extra && /class=/.test(extra) ? extra : 'class="ibtn"'} id="${id}" aria-label="${esc(label)}" title="${esc(label)}">${ic(icon)}</button>`;
+
+/* ---------- Profil ---------- */
+let installPrompt = null;
+async function viewProfile() {
+  const u = API.me();
+  setTop(t('Mein Profil'));
+  const iosHint = /iphone|ipad|ipod/i.test(navigator.userAgent) && !navigator.standalone;
+  const standalone = !!(root.matchMedia && root.matchMedia('(display-mode: standalone)').matches);
+  const themes = [['light', 'sun', t('Hell')], ['dark', 'moon', t('Dunkel')], ['auto', 'monitor', t('Automatisch')]];
+  view().innerHTML = `<div class="stack narrow">
+    <div class="card pad"><div class="kv"><span>${t('Name')}</span><b>${esc(u.name)}</b></div>
+      ${u.phone ? `<div class="kv"><span>${t('Mobilnummer')}</span><b>${esc(fmtPhone(u.phone))}</b></div>` : ''}</div>
+    <div class="card pad"><h2>${t('Rollen')}</h2>
+      <div class="role"><span class="rbadge">${esc((u.name || 'M').trim().charAt(0).toUpperCase())}</span>${t('Mitglied')}</div>
+      ${u.isAdmin ? `<div class="role"><span class="rbadge sq">${ic('admin')}</span>Admin</div>` : ''}</div>
+    <div class="card pad"><h2>${t('Sprache')}</h2><p class="desc">${t('Wähle die Sprache, in der du die App nutzen möchtest.')}</p>
+      <select id="sel-lang" aria-label="${t('Sprache')}"><option value="de" ${LANG === 'de' ? 'selected' : ''}>Deutsch</option><option value="en" ${LANG === 'en' ? 'selected' : ''}>English</option></select></div>
+    <div class="card pad"><h2>${t('Darstellung')}</h2><p class="desc">${t('Wähle, wie die App aussehen soll.')}</p>
+      <div class="seg3" id="seg-theme" role="radiogroup">${themes.map(([v, i, l]) =>
+        `<button type="button" role="radio" aria-checked="${prefs.theme === v}" data-v="${v}" class="${prefs.theme === v ? 'on' : ''}">${ic(i)}<span>${l}</span></button>`).join('')}</div></div>
+    ${standalone ? '' : `<div class="card pad"><h2>${t('App installieren')}</h2><p class="desc">${t('Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.')}</p>
+      ${installPrompt ? `<button class="btn out block" id="inst">${t('Installieren')}</button>` : `<p class="meta">${iosHint ? t('Tippe in Safari auf «Teilen» und dann auf «Zum Home-Bildschirm».') : t('Im Browser-Menü: «Zum Startbildschirm hinzufügen» bzw. «App installieren».')}</p>`}</div>`}
+    <div class="card pad"><div class="kv"><span>${t('Daten')}</span><b>${CFG.BACKEND === 'supabase' ? 'Supabase' : t('Nur in diesem Browser')}</b></div>
+      <p class="meta">${t('Deine PIN kann nur ein Admin zurücksetzen.')}</p></div>
+    <button class="btn dangerbtn block" id="logout">${ic('logout')} ${t('Abmelden')}</button></div>`;
+  $('#seg-theme').addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    setPref('theme', b.dataset.v); viewProfile();
+  });
+  $('#sel-lang').addEventListener('change', e => { setPref('lang', e.target.value); route(); });
+  const inst = $('#inst');
+  if (inst) inst.onclick = async () => { try { installPrompt.prompt(); await installPrompt.userChoice; } catch (err) { console.error(err); } installPrompt = null; viewProfile(); };
   $('#logout').onclick = async () => { await API.logout(); location.hash = ''; route(); };
 }
 
 /* ---------- Library ---------- */
 async function viewLibrary() {
-  const u = API.me();
   const maps = await API.listMaps();
-  view().innerHTML = `<div class="bar"><h1>${t('Library')}</h1>
-    <input type="search" id="q" placeholder="${t('Suchen …')}" aria-label="${t('Suchen …')}">
-    <button class="btn" id="imp">${t('Import (JSON)')}</button>
-    <button class="btn primary" id="new">+ ${t('Neue Map')}</button>
-    <input type="file" id="file" accept="application/json,.json" hidden></div>
-    <div class="grid" id="grid"></div>`;
+  setTop(t('Library'), { right: iconBtn('new', 'plus', t('Neue Map'), 'class="ibtn flat"') });
+  view().innerHTML = `<div class="searchbar"><input type="search" id="q" placeholder="${t('Suchen …')}" aria-label="${t('Suchen …')}"></div>
+    <div class="grid" id="grid"></div>
+    <input type="file" id="file" accept="application/json,.json" hidden>`;
   const grid = $('#grid');
   const draw = () => {
     const q = $('#q').value.trim().toLowerCase();
     const list = maps.filter(m => !q || m.title.toLowerCase().includes(q) || m.ownerName.toLowerCase().includes(q));
     if (!list.length) { grid.innerHTML = `<div class="empty">${t('Keine Maps gefunden.')}</div>`; return; }
-    grid.innerHTML = list.map(m => `<div class="card mapcard">
+    let last = '';
+    grid.innerHTML = list.map(m => {
+      const label = monthLabel(m.updated);
+      const head = label !== last ? `<div class="week">${esc(label)}</div>` : '';
+      last = label;
+      return head + `<article class="card mapcard">
+      <div class="chead" data-act="open" data-id="${esc(m.id)}"><span class="ctitle">${esc(m.title)}</span>
+        <span class="badge ${m.role === 'viewer' ? 'gray' : ''}">${t(ROLE_LABEL[m.role])}</span>
+        <button class="ibtn flat" data-act="menu" data-id="${esc(m.id)}" aria-label="${t('Weitere Aktionen')}: ${esc(m.title)}" title="${t('Weitere Aktionen')}">${ic('more')}</button></div>
       <div class="thumb" data-act="open" data-id="${esc(m.id)}">${mapSvg(m.data, { id: 't' + m.id })}</div>
-      <div class="title">${esc(m.title)}<span class="badge ${m.role === 'viewer' ? 'gray' : ''}">${t(ROLE_LABEL[m.role])}</span></div>
-      <div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}</div>
-      <div class="actions">
-        <button class="btn small primary" data-act="open" data-id="${esc(m.id)}">${canEdit(m.role) ? t('Öffnen') : t('Ansehen')}</button>
-        <button class="btn small" data-act="dup" data-id="${esc(m.id)}">${t('Duplizieren')}</button>
-        ${canManage(m.role) ? `<button class="btn small" data-act="share" data-id="${esc(m.id)}">${t('Teilen')}</button>
-        <button class="btn small danger" data-act="del" data-id="${esc(m.id)}">${t('Löschen')}</button>` : ''}
-      </div></div>`).join('');
+      <div class="cbody"><div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}</div>
+        <div class="crow"><button class="btn out" data-act="open" data-id="${esc(m.id)}">${ic(canEdit(m.role) ? 'open' : 'select')} ${canEdit(m.role) ? t('Öffnen') : t('Ansehen')}</button></div></div></article>`;
+    }).join('');
   };
   draw();
   $('#q').addEventListener('input', draw);
+
+  const dupMap = async id => { try { await API.duplicateMap(id); toast(t('Dupliziert')); viewLibrary(); } catch (err) { fail(err); } };
+  const delMap = id => {
+    const m = maps.find(x => x.id === id);
+    const md = modal(`<h2>${t('Map löschen?')}</h2><p>${esc(m.title)}</p>
+      <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn danger" id="ok">${t('Löschen')}</button></div>`);
+    $('#ok', md.el).onclick = async () => { try { await API.deleteMap(id); md.close(); viewLibrary(); } catch (err) { fail(err); } };
+  };
 
   $('#new').onclick = () => {
     const md = modal(`<h2>${t('Neue Map')}</h2>
       <label>${t('Titel')}<input id="nt" maxlength="100" placeholder="${t('Neue Map')}"></label>
       <label>${t('Vorlage')}<select id="ntpl"><option value="">${t('Leer')}</option><option value="tea">${t('Online-Teeshop (Beispiel)')}</option></select></label>
-      <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Erstellen')}</button></div>`);
+      <div class="foot"><button class="btn left" id="imp">${ic('download')} ${t('Import (JSON)')}</button><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Erstellen')}</button></div>`);
     $('#nt', md.el).focus();
+    $('#imp', md.el).onclick = () => $('#file').click();
     $('#ok', md.el).onclick = async () => {
       try { const id = await API.createMap({ title: $('#nt', md.el).value, template: $('#ntpl', md.el).value }); md.close(); location.hash = '#/map/' + id; }
       catch (e) { fail(e); }
     };
   };
-  $('#imp').onclick = () => $('#file').click();
   $('#file').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
@@ -582,22 +746,21 @@ async function viewLibrary() {
     } catch (err) { fail(err); }
     e.target.value = '';
   };
-  grid.addEventListener('click', async e => {
+  grid.addEventListener('click', e => {
     const el = e.target.closest('[data-act]'); if (!el) return;
     const id = el.dataset.id, act = el.dataset.act;
-    try {
-      if (act === 'open') location.hash = '#/map/' + id;
-      else if (act === 'dup') { await API.duplicateMap(id); toast(t('Dupliziert')); viewLibrary(); }
-      else if (act === 'del') {
-        const m = maps.find(x => x.id === id);
-        const md = modal(`<h2>${t('Map löschen?')}</h2><p>${esc(m.title)}</p>
-          <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn danger" id="ok">${t('Löschen')}</button></div>`);
-        $('#ok', md.el).onclick = async () => { try { await API.deleteMap(id); md.close(); viewLibrary(); } catch (err) { fail(err); } };
-      }
-      else if (act === 'share') await shareDialog(id);
-    } catch (err) { fail(err); }
+    if (act === 'open') location.hash = '#/map/' + id;
+    else if (act === 'menu') {
+      const m = maps.find(x => x.id === id);
+      sheet(m.title, [
+        { icon: 'open', label: canEdit(m.role) ? t('Öffnen') : t('Ansehen'), run: () => { location.hash = '#/map/' + id; } },
+        { icon: 'copy', label: t('Duplizieren'), id: 'm-dup', run: () => dupMap(id) }
+      ].concat(canManage(m.role) ? [
+        { icon: 'share', label: t('Teilen'), id: 'm-share', run: () => shareDialog(id).catch(fail) },
+        { icon: 'trash', label: t('Löschen'), id: 'm-del', danger: true, run: () => delMap(id) }
+      ] : []));
+    }
   });
-  void u;
 }
 
 async function shareDialog(id) {
@@ -634,58 +797,69 @@ async function viewAdmin() {
   const me0 = API.me();
   const users = await API.listUsers();
   const maps = await API.listMaps();
-  view().innerHTML = `<div class="bar"><h1>${t('Admin')}</h1></div>
-    <div class="card" style="margin-bottom:16px"><h2>${t('Person anlegen')}</h2>
-      <form id="cf" class="form-row" autocomplete="off">
-        <label>${t('Name')}<input id="cn" required maxlength="40"></label>
-        <label>${t('Mobilnummer')}<input id="cm" type="tel" inputmode="tel" required maxlength="30" placeholder="079 123 45 67"></label>
-        <label>${t('PIN (leer = letzte 6 Ziffern)')}<input id="cp" maxlength="6" inputmode="numeric" pattern="[0-9]{6}"></label>
-        <label class="chk" style="flex:0 0 auto"><input type="checkbox" id="ca"> ${t('Admin')}</label>
-        <button class="btn primary">${t('Anlegen')}</button></form></div>
-    <div class="card"><h2>${t('Personen')}</h2><div style="overflow:auto"><table><thead><tr>
-      <th>${t('Name')}</th><th>${t('Mobilnummer')}</th><th>${t('Rolle')}</th><th>${t('Status')}</th><th>${t('Maps')}</th><th></th></tr></thead><tbody id="ub"></tbody></table></div></div>`;
+  setTop(t('Admin Console'), { sub: t('Nur für Admins sichtbar') });
+  view().innerHTML = `<section class="acc open"><div class="chead acc-h" id="acc-h"><span class="ctitle">${t('Personen')} (${users.length})</span>
+      <button class="ibtn flat" id="addu" aria-label="${t('Person anlegen')}" title="${t('Person anlegen')}">${ic('plus')}</button>
+      <button class="ibtn flat" id="infob" aria-label="${t('Erklärung anzeigen')}" title="${t('Erklärung anzeigen')}">${ic('info')}</button>
+      <span class="chev">${ic('chev')}</span></div>
+      <p class="infobar" id="infotxt" hidden>${t('Personen mit Mobilnummer anlegen. Die PIN sind die letzten 6 Ziffern der Nummer, solange du keine andere setzt. Über «…» pro Person änderst du Rolle, Status und PIN.')}</p>
+      <div class="list" id="ub"></div></section>`;
+  $('#acc-h').addEventListener('click', e => {
+    if (e.target.closest('#infob')) { $('#infotxt').hidden = !$('#infotxt').hidden; return; }
+    if (!e.target.closest('#addu')) $('.acc').classList.toggle('open');
+  });
   const body = $('#ub');
   const draw = () => {
     body.innerHTML = users.map(u => {
       const self = u.id === me0.id;
       const n = maps.filter(m => m.owner === u.id).length;
-      return `<tr><td>${esc(u.name)}${self ? ` <span class="meta">(${t('du')})</span>` : ''}</td>
-        <td>${esc(fmtPhone(u.phone))}</td>
-        <td>${u.isAdmin ? 'Admin' : t('Mitglied')}</td><td>${u.active ? t('aktiv') : t('deaktiviert')}</td><td>${n}</td>
-        <td><div class="row-actions">
-          <button class="btn small" data-act="admin" data-id="${esc(u.id)}" ${self ? 'disabled' : ''}>${u.isAdmin ? t('Admin entziehen') : t('Zum Admin machen')}</button>
-          <button class="btn small" data-act="active" data-id="${esc(u.id)}" ${self ? 'disabled' : ''}>${u.active ? t('Deaktivieren') : t('Aktivieren')}</button>
-          <button class="btn small" data-act="pin" data-id="${esc(u.id)}">${t('PIN zurücksetzen')}</button>
-          <button class="btn small danger" data-act="del" data-id="${esc(u.id)}" ${self ? 'disabled' : ''}>${t('Löschen')}</button>
-        </div></td></tr>`;
+      return `<div class="urow"><div class="avatar sm ${u.active ? '' : 'off'}">${esc((u.name || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="grow"><div class="uname">${esc(u.name)}${self ? ` <span class="meta">(${t('du')})</span>` : ''}${u.isAdmin ? `<span class="badge">Admin</span>` : ''}${u.active ? '' : `<span class="badge gray">${t('deaktiviert')}</span>`}</div>
+          <div class="meta">${esc(fmtPhone(u.phone))} · ${n} ${t('Maps')}</div></div>
+        <button class="ibtn" data-act="menu" data-id="${esc(u.id)}" aria-label="${t('Weitere Aktionen')}: ${esc(u.name)}" title="${t('Weitere Aktionen')}">${ic('more')}</button></div>`;
     }).join('');
   };
   draw();
   const reload = () => viewAdmin();
-  $('#cf').addEventListener('submit', async e => {
-    e.preventDefault();
-    try { await API.createUser({ name: $('#cn').value, phone: $('#cm').value, pin: $('#cp').value, isAdmin: $('#ca').checked }); toast(t('Person angelegt')); reload(); }
-    catch (err) { fail(err); }
-  });
-  body.addEventListener('click', async e => {
-    const el = e.target.closest('[data-act]'); if (!el) return;
-    const id = el.dataset.id, u = users.find(x => x.id === id);
-    if (!me0.isAdmin) return;
-    try {
-      if (el.dataset.act === 'admin') { await API.updateUser(id, { isAdmin: !u.isAdmin }); reload(); }
-      else if (el.dataset.act === 'active') { await API.updateUser(id, { active: !u.active }); reload(); }
-      else if (el.dataset.act === 'pin') {
-        const md = modal(`<h2>${t('PIN zurücksetzen')}: ${esc(u.name)}</h2>
-          <label>${t('Neue PIN (leer = letzte 6 Ziffern der Mobilnummer)')}<input id="np" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autofocus></label>
-          <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Speichern')}</button></div>`);
-        $('#ok', md.el).onclick = async () => { try { await API.resetPin(id, $('#np', md.el).value); md.close(); toast(t('PIN gesetzt')); } catch (err) { fail(err); } };
-      }
-      else if (el.dataset.act === 'del') {
-        const md = modal(`<h2>${t('Person löschen?')}</h2><p>${esc(u.name)}</p><p class="meta">${t('Maps dieser Person gehen an dich über.')}</p>
-          <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn danger" id="ok">${t('Löschen')}</button></div>`);
-        $('#ok', md.el).onclick = async () => { try { await API.deleteUser(id); md.close(); reload(); } catch (err) { fail(err); } };
-      }
-    } catch (err) { fail(err); }
+
+  $('#addu').onclick = () => {
+    const md = modal(`<h2>${t('Person anlegen')}</h2>
+      <form id="cf" autocomplete="off">
+        <label>${t('Name')}<input id="cn" required maxlength="40"></label>
+        <label>${t('Mobilnummer')}${phoneField('cmcc', 'cm')}</label>
+        <label>${t('PIN (leer = letzte 6 Ziffern)')}<input id="cp" maxlength="6" inputmode="numeric" pattern="[0-9]{6}"></label>
+        <label class="chk"><input type="checkbox" id="ca"> ${t('Admin')}</label>
+        <div class="foot"><button type="button" class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary">${t('Anlegen')}</button></div></form>`);
+    $('#cn', md.el).focus();
+    $('#cf', md.el).addEventListener('submit', async e => {
+      e.preventDefault();
+      try { await API.createUser({ name: $('#cn', md.el).value, phone: composePhone($('#cmcc', md.el).value, $('#cm', md.el).value), pin: $('#cp', md.el).value, isAdmin: $('#ca', md.el).checked }); md.close(); toast(t('Person angelegt')); reload(); }
+      catch (err) { fail(err); }
+    });
+  };
+
+  const pinDialog = u => {
+    const md = modal(`<h2>${t('PIN zurücksetzen')}: ${esc(u.name)}</h2>
+      <label>${t('Neue PIN (leer = letzte 6 Ziffern der Mobilnummer)')}<input id="np" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autofocus></label>
+      <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Speichern')}</button></div>`);
+    $('#ok', md.el).onclick = async () => { try { await API.resetPin(u.id, $('#np', md.el).value); md.close(); toast(t('PIN gesetzt')); } catch (err) { fail(err); } };
+  };
+  const delDialog = u => {
+    const md = modal(`<h2>${t('Person löschen?')}</h2><p>${esc(u.name)}</p><p class="meta">${t('Maps dieser Person gehen an dich über.')}</p>
+      <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn danger" id="ok">${t('Löschen')}</button></div>`);
+    $('#ok', md.el).onclick = async () => { try { await API.deleteUser(u.id); md.close(); reload(); } catch (err) { fail(err); } };
+  };
+  const upd = async (id, patch) => { try { await API.updateUser(id, patch); reload(); } catch (err) { fail(err); } };
+
+  body.addEventListener('click', e => {
+    const el = e.target.closest('[data-act="menu"]'); if (!el || !me0.isAdmin) return;
+    const u = users.find(x => x.id === el.dataset.id), self = u.id === me0.id;
+    sheet(u.name, [
+      { icon: 'admin', id: 'u-admin', label: u.isAdmin ? t('Admin entziehen') : t('Zum Admin machen'), disabled: self, run: () => upd(u.id, { isAdmin: !u.isAdmin }) },
+      { icon: 'power', id: 'u-active', label: u.active ? t('Deaktivieren') : t('Aktivieren'), disabled: self, run: () => upd(u.id, { active: !u.active }) },
+      { icon: 'key', id: 'u-pin', label: t('PIN zurücksetzen'), run: () => pinDialog(u) },
+      { icon: 'trash', id: 'u-del', label: t('Löschen'), danger: true, disabled: self, run: () => delDialog(u) }
+    ]);
   });
 }
 
@@ -697,18 +871,16 @@ async function viewDesigner(id) {
   let sel = null, tool = 'select', linkFrom = null, drag = null, saveT = null, dirty = false, panelKey = '';
   const undo = [], redo = [];
 
-  view().innerHTML = `<div class="d-head"><a href="#/library" class="btn small">← ${t('Library')}</a>
-      <input class="title" id="mt" value="${esc(title)}" maxlength="100" ${edit ? '' : 'readonly'} aria-label="${t('Titel')}">
-      ${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}</div>
-    <div class="d-toolbar">
-      ${edit ? `<button class="btn tool active" data-tool="select">${t('Auswählen')}</button>
-      <button class="btn tool" data-tool="add">+ ${t('Baustein')}</button>
-      <button class="btn tool" data-tool="link">${t('Verbinden')}</button><span class="sep"></span>
-      <button class="btn" id="undo">${t('Rückgängig')}</button><button class="btn" id="redo">${t('Wiederholen')}</button><span class="sep"></span>
-      <button class="btn" id="ver">${t('Version speichern')}</button>` : ''}
-      <button class="btn" id="exs">${t('Export SVG')}</button><button class="btn" id="exj">${t('Export JSON')}</button>
+  setTop('', { back: '#/library',
+    titleHtml: `<input class="title" id="mt" value="${esc(title)}" maxlength="100" ${edit ? '' : 'readonly'} aria-label="${t('Titel')}">`,
+    right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
+  view().innerHTML = `<div class="d-toolbar">
+      ${edit ? `<div class="tools"><button class="tbtn tool active" data-tool="select">${ic('select')}<span>${t('Auswählen')}</span></button>
+      <button class="tbtn tool" data-tool="add">${ic('node')}<span>${t('Baustein')}</span></button>
+      <button class="tbtn tool" data-tool="link">${ic('link')}<span>${t('Verbinden')}</span></button></div>
+      ${iconBtn('undo', 'undo', t('Rückgängig'))}${iconBtn('redo', 'redo', t('Wiederholen'))}` : ''}
       <span id="status">${t('Gespeichert')}</span></div>
-    <div class="d-main"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel" id="panel"></aside></div>`;
+    <div class="d-main"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel card" id="panel"></aside></div>`;
   const host = $('#canvas'), panel = $('#panel'), status = $('#status');
 
   const byId = k => data.nodes.find(n => n.id === k);
@@ -885,12 +1057,13 @@ async function viewDesigner(id) {
   cleanup = () => { flush(); document.removeEventListener('keydown', onKey); cleanup = () => {}; };
 
   /* Toolbar */
+  let saveVersion = () => {};
   if (edit) {
     document.querySelectorAll('.tool').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
     $('#undo').onclick = () => doUndo(undo, redo);
     $('#redo').onclick = () => doUndo(redo, undo);
     $('#mt').addEventListener('input', e => { title = e.target.value.slice(0, 100); changed(); });
-    $('#ver').onclick = () => {
+    saveVersion = () => {
       const md = modal(`<h2>${t('Version speichern')}</h2>
         <label>${t('Bezeichnung')}<input id="vlab" maxlength="80" placeholder="${t('z. B. Stand Q4')}" autofocus></label>
         <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Speichern')}</button></div>`);
@@ -900,8 +1073,9 @@ async function viewDesigner(id) {
       };
     };
   }
-  $('#exs').onclick = () => download(fileSafe(title) + '.svg', mapSvg(data, { id: 'x' }), 'image/svg+xml');
-  $('#exj').onclick = () => download(fileSafe(title) + '.json', JSON.stringify({ title, data }, null, 2), 'application/json');
+  $('#more').onclick = () => sheet(title, (edit ? [{ icon: 'save', id: 'ver', label: t('Version speichern'), run: saveVersion }] : []).concat([
+    { icon: 'download', id: 'exs', label: t('Export SVG'), run: () => download(fileSafe(title) + '.svg', mapSvg(data, { id: 'x' }), 'image/svg+xml') },
+    { icon: 'download', id: 'exj', label: t('Export JSON'), run: () => download(fileSafe(title) + '.json', JSON.stringify({ title, data }, null, 2), 'application/json') }]));
 
   syncBtns(); draw(); renderPanel();
   void panelKey;
@@ -914,8 +1088,11 @@ async function route() {
   if (!u) { renderLogin(); return; }
   shell(u);
   const parts = location.hash.replace(/^#\/?/, '').split('/');
+  isMapRoute = parts[0] === 'map';
+  applyWidth();
   try {
     if (parts[0] === 'map' && parts[1]) await viewDesigner(parts[1]);
+    else if (parts[0] === 'profile') await viewProfile();
     else if (parts[0] === 'admin') {
       if (!u.isAdmin) { location.hash = '#/library'; return; }
       await viewAdmin();
@@ -932,7 +1109,15 @@ function registerSw() {
   }
 }
 async function boot() {
+  applyTheme();
+  if (root.matchMedia) { try { root.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme(); }); } catch (e) { console.error(e); } }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; });
   window.addEventListener('hashchange', route);
+  document.addEventListener('dblclick', e => {
+    if (!e.target.closest || !e.target.closest('#top') || e.target.closest('button, a, input, select, textarea')) return;
+    setPref('wide', !isWide()); applyWidth(); fitTitles();
+    toast(isWide() ? t('Breite Ansicht (1100 px)') : t('Schmale Ansicht (520 px)'));
+  });
   registerSw();
   try { await API.init(); }
   catch (e) {

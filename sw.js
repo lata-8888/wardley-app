@@ -1,15 +1,25 @@
 'use strict';
-const CACHE = 'wardley-v3';
+const CACHE = 'wardley-v9';
 const SHELL = [
   './',
   'index.html',
   'styles.css',
   'app.js',
+  'i18n.js',
   'config.js',
   'manifest.webmanifest',
+  'icons/favicon-48.png',
+  'icons/apple-touch-icon.png',
   'icons/icon-192.png',
+  'icons/logo.png',
   'icons/icon-512.png',
-  'icons/icon-maskable-512.png'
+  'icons/icon-maskable-512.png',
+  'fonts/barlow-condensed-latin-500-normal.woff2',
+  'fonts/barlow-condensed-latin-600-normal.woff2',
+  'fonts/barlow-condensed-latin-700-normal.woff2',
+  'fonts/barlow-latin-400-normal.woff2',
+  'fonts/barlow-latin-500-normal.woff2',
+  'fonts/barlow-latin-600-normal.woff2'
 ];
 
 self.addEventListener('install', e => {

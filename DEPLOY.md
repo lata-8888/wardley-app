@@ -15,8 +15,10 @@ Es gibt keine eigene Konfigurationsdatei im Repo, `config.js` entsteht beim Depl
 ## 1. Supabase-Projekt einrichten (pro Umgebung einmal)
 
 1. Neues Projekt anlegen (Region nahe bei den Nutzern, zum Beispiel Zürich oder Frankfurt).
-2. SQL Editor: Inhalt von `supabase/schema.sql` ausführen. Das Skript ist idempotent und darf bei
-   Änderungen erneut laufen.
+2. SQL Editor: Inhalt von `supabase/schema.sql` komplett ausführen. Das Skript ist idempotent und darf bei
+   Änderungen erneut laufen. Es stellt auch einen älteren Stand um (frühere Version mit Anmeldung per Name):
+   Alte Personen ohne Mobilnummer bleiben samt Maps erhalten, werden aber deaktiviert und können im Admin-Tab
+   gelöscht werden. Gehört die Tabelle `profiles` nicht zu dieser App, bricht das Skript mit einer Meldung ab.
 3. SQL Editor: `supabase/seed.sql` ausführen. Vorher Name und Mobilnummer des ersten Admins anpassen.
    Das legt die Person inklusive Login an, die PIN sind die letzten 6 Ziffern der Nummer.
    Die Token-Spalten in `auth.users` werden dabei mit `''` gesetzt, nie mit `NULL`,
@@ -79,9 +81,9 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 - [ ] Neue Tabelle oder Spalte: `supabase/schema.sql` ändern (idempotent halten), RLS aktivieren, Policies schreiben,
       im SQL Editor von DEV ausführen und testen, dann PRD.
 - [ ] Neue Admin-Aktion: Guard im Client und serverseitige Prüfung in der RPC oder Policy.
-- [ ] Neue Texte laufen über `t()`. Weitere Sprachen kommen in `DICT` in `app.js`.
+- [ ] Neue Texte laufen über `t()`. Die englische Übersetzung steht in `i18n.js`; für jeden neuen Text dort einen Eintrag ergänzen.
 - [ ] Neue Shell-Datei: in `SHELL` in `sw.js` eintragen und im `build.js` kopieren lassen.
-- [ ] Bei Änderungen an `sw.js`, `app.js`, `styles.css` oder `index.html` die Konstante `CACHE` in `sw.js`
+- [ ] Bei Änderungen an `sw.js`, `app.js`, `i18n.js`, `styles.css` oder `index.html` die Konstante `CACHE` in `sw.js`
       erhöhen (der Build hängt zusätzlich die Commit-ID an).
 - [ ] Externe Bibliotheken: nur von `cdn.jsdelivr.net`. `supabase-js` ist auf Major-Version 2 gepinnt;
       bei Bedarf auf eine feste Version setzen und bei Versionswechsel auf bekannte Schwachstellen prüfen.
@@ -91,6 +93,8 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 
 ## 4. Regressionstest (manuell, nach jeder Änderung)
 
+- Profil: Hell, Dunkel und Automatisch umschalten, Sprache Deutsch und English, Einstellungen bleiben nach Neuladen erhalten.
+- Untere Leiste und «…»-Menüs (Karte, Person, Designer) auf dem Handy bedienen.
 - Login mit Mobilnummer und PIN in verschiedenen Schreibweisen (`079 123 45 67`, `+41 79 123 45 67`,
   `0041 79 123 45 67`), mit falscher PIN, mit ungültiger oder zu kurzer Nummer, Logout.
 - Library: Map anlegen (leer und Vorlage), duplizieren, teilen, löschen, JSON-Import.
@@ -107,6 +111,7 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 |---|---|
 | "Nummer oder PIN falsch" trotz richtiger Daten | Passt `EMAIL_DOMAIN` zu `app_settings`? In `auth.users` prüfen: `select email from auth.users limit 5;` (erwartet: `41791234567@wardley.app`). Sind die Token-Spalten `''` statt `NULL`? Hat ein Admin die PIN geändert? |
 | Start zeigt "config.js unvollständig" | Repository-Variablen fehlen oder sind leer, Deployment neu auslösen |
+| SQL-Fehler `column "phone" does not exist` | `profiles` stammt aus einer früheren Version von `schema.sql`. Aktuelles `schema.sql` komplett erneut ausführen (enthält die Umstellung), danach `seed.sql` |
 | Alte Version nach dem Deployment | Service Worker cached `config.js` und die Shell: hart neu laden (Strg+Shift+R) oder Service Worker unregistern |
 | Karte lässt sich nicht speichern | Rolle prüfen (Leser?), Konsole auf RLS-Fehler ansehen, `schema.sql` in dieser Umgebung ausgeführt? |
 | Login-Fehler genauer ansehen | Network-Tab > `token?grant_type=password` > Payload: welche E-Mail sendet die App? |

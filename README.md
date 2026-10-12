@@ -17,8 +17,8 @@ Die Anleitung dazu steht in **DEPLOY.md**.
 
     python3 -m http.server 8080      # oder: npm run serve
 
-Dann `http://localhost:8080` öffnen. Die Anmeldung läuft wie bei FBRO mit Mobilnummer und PIN. Die PIN sind
-die letzten 6 Ziffern der Nummer. Demo-Logins im lokalen Modus:
+Dann `http://localhost:8080` öffnen. Die Anmeldung läuft wie bei FBRO mit Länderwahl (CH, DE, Andere), Mobilnummer und PIN. Das PIN-Feld darf leer bleiben,
+dann gilt die Standard-PIN: die letzten 6 Ziffern der Nummer. Demo-Logins im lokalen Modus:
 
 | Mobilnummer | PIN | Person | Rolle |
 |---|---|---|---|
@@ -33,10 +33,15 @@ Diese Datei nicht committen.
 
 ## Module
 
-- Library: Karten mit Vorschau, Suche, Neu (leer oder Teeshop-Vorlage), Duplizieren, Teilen, Löschen, JSON-Import.
-- Designer: Bausteine setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
+Oberfläche im Stil der FBRO-App (Farben, Abmessungen, Karten- und Menüaufbau aus deren `styles.css`): Mobile-first, untere Icon-Leiste (Library, Admin nur für Admins, Profil),
+Aktionen pro Eintrag gebündelt unter dem «…»-Knopf, grosse Titel mit Barlow Condensed (lokal in `fonts/`).
+
+- Profil: Name und Nummer, Rollen, Sprache (Deutsch, English), Darstellung (Hell, Dunkel, Automatisch), App installieren, Abmelden.
+  Sprache und Darstellung werden pro Gerät im Browser gespeichert (`localStorage`).
+- Library: Karten mit Vorschau, Suche, «+» für neue Map (leer, Teeshop-Vorlage oder JSON-Import), «…» pro Karte: Öffnen, Duplizieren, Teilen, Löschen.
+- Designer: Werkzeugleiste (Auswählen, Baustein, Verbinden, Rückgängig, Wiederholen), «…» oben rechts: Version speichern, Export SVG und JSON. Bausteine setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
   Undo und Redo (Strg+Z, Strg+Y), Autosave, Versionen mit Wiederherstellung, Export als SVG und JSON.
-- Admin: Personen mit Mobilnummer anlegen, Admin-Rolle vergeben, aktivieren oder deaktivieren, PIN zurücksetzen
+- Admin Console: Personenliste, «+» legt eine Person mit Mobilnummer an, «…» pro Person: Admin-Rolle, aktivieren oder deaktivieren, PIN zurücksetzen
   (auf Standard oder eigene PIN), löschen.
 
 Rechte pro Map: Besitzer, Bearbeiter, Leser. Admins sehen und verwalten alles.
@@ -45,8 +50,9 @@ Rechte pro Map: Besitzer, Bearbeiter, Leser. Admins sehen und verwalten alles.
 
 | Pfad | Inhalt |
 |---|---|
-| `index.html`, `app.js`, `styles.css` | Die App. `app.js` enthält `LocalApi` und die Supabase-Schicht hinter derselben Schnittstelle |
+| `index.html`, `app.js`, `i18n.js`, `styles.css`, `fonts/` | Die App. `app.js` enthält `LocalApi` und die Supabase-Schicht hinter derselben Schnittstelle |
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA |
+| `assets/logo.png`, `scripts/make-icons.py` | Logo (Quelle) und Skript, das daraus alle Icons in `icons/` erzeugt (`python3 scripts/make-icons.py`, braucht Pillow) |
 | `config.js` | Lokale Standardkonfiguration (im Repo ohne Zugangsdaten) |
 | `config.example.js` | Vorlage für Supabase |
 | `supabase/schema.sql` | Tabellen, Row Level Security, Trigger, Admin-RPCs (idempotent) |
@@ -72,7 +78,8 @@ Personen anlegen, PIN zurücksetzen, Rollen ändern und löschen laufen über RP
 - Kein Zoom und Pan im Designer, keine Mehrfachauswahl.
 - Kein Konfliktschutz bei gleichzeitigem Bearbeiten derselben Map: wer zuletzt speichert, gewinnt.
   Die Spalte `rev` ist dafür vorbereitet.
-- Nur Deutsch. Texte laufen über `t()`, weitere Sprachen kommen in `DICT`.
+- Deutsch und Englisch. Texte laufen über `t()`, Übersetzungen stehen in `i18n.js` (Schlüssel = deutscher Text). Karteninhalte und die Teeshop-Vorlage bleiben deutsch.
+- Profil-Einstellungen gelten pro Gerät, nicht pro Konto.
 - Im lokalen Modus liegen PINs im Klartext im Browser. Mit Supabase übernimmt Auth das Hashing.
 - Personen können ihre PIN nicht selbst ändern, nur ein Admin kann sie zurücksetzen (wie bei FBRO).
 - Die Standard-PIN (letzte 6 Ziffern der Nummer) ist leicht zu erraten. Für sensible Daten beim Anlegen eine eigene PIN setzen.
