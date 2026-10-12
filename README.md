@@ -17,13 +17,16 @@ Die Anleitung dazu steht in **DEPLOY.md**.
 
     python3 -m http.server 8080      # oder: npm run serve
 
-Dann `http://localhost:8080` öffnen. Demo-Logins im lokalen Modus (Name / PIN):
+Dann `http://localhost:8080` öffnen. Die Anmeldung läuft wie bei FBRO mit Mobilnummer und PIN. Die PIN sind
+die letzten 6 Ziffern der Nummer. Demo-Logins im lokalen Modus:
 
-| Name | PIN | Rolle |
-|---|---|---|
-| Admin | 1234 | Admin |
-| Anna | 1111 | Bearbeiterin der Beispiel-Map |
-| Ben | 2222 | Leser der Beispiel-Map |
+| Mobilnummer | PIN | Person | Rolle |
+|---|---|---|---|
+| 079 111 11 11 | 111111 | Admin | Admin |
+| 079 222 22 22 | 222222 | Anna | Bearbeiterin der Beispiel-Map |
+| 079 333 33 33 | 333333 | Ben | Leser der Beispiel-Map |
+
+Die Nummer darf als `079 …`, `+41 79 …`, `0041 79 …` oder `+41 (0)79 …` eingegeben werden.
 
 Gegen ein Supabase-Projekt lokal testen: `config.example.js` als `config.js` speichern und ausfüllen.
 Diese Datei nicht committen.
@@ -33,7 +36,8 @@ Diese Datei nicht committen.
 - Library: Karten mit Vorschau, Suche, Neu (leer oder Teeshop-Vorlage), Duplizieren, Teilen, Löschen, JSON-Import.
 - Designer: Bausteine setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
   Undo und Redo (Strg+Z, Strg+Y), Autosave, Versionen mit Wiederherstellung, Export als SVG und JSON.
-- Admin: Personen anlegen, Admin-Rolle vergeben, aktivieren oder deaktivieren, PIN zurücksetzen, löschen.
+- Admin: Personen mit Mobilnummer anlegen, Admin-Rolle vergeben, aktivieren oder deaktivieren, PIN zurücksetzen
+  (auf Standard oder eigene PIN), löschen.
 
 Rechte pro Map: Besitzer, Bearbeiter, Leser. Admins sehen und verwalten alles.
 
@@ -55,7 +59,7 @@ Rechte pro Map: Besitzer, Bearbeiter, Leser. Admins sehen und verwalten alles.
 
 ## Datenmodell
 
-- `profiles` (Name, Login-Schlüssel, Admin, aktiv), verknüpft mit `auth.users`
+- `profiles` (Name, Mobilnummer, Admin, aktiv), verknüpft mit `auth.users`. Die Nummer ist nur für Admins lesbar
 - `maps` mit `data jsonb` (Nodes, Links, Entwicklungspfeile), Besitzer, Revisionsnummer
 - `map_members` (Bearbeiter oder Leser pro Map)
 - `map_versions` (Snapshots, höchstens 50 pro Map)
@@ -70,3 +74,5 @@ Personen anlegen, PIN zurücksetzen, Rollen ändern und löschen laufen über RP
   Die Spalte `rev` ist dafür vorbereitet.
 - Nur Deutsch. Texte laufen über `t()`, weitere Sprachen kommen in `DICT`.
 - Im lokalen Modus liegen PINs im Klartext im Browser. Mit Supabase übernimmt Auth das Hashing.
+- Personen können ihre PIN nicht selbst ändern, nur ein Admin kann sie zurücksetzen (wie bei FBRO).
+- Die Standard-PIN (letzte 6 Ziffern der Nummer) ist leicht zu erraten. Für sensible Daten beim Anlegen eine eigene PIN setzen.

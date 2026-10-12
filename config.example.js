@@ -6,7 +6,8 @@
 // Regeln:
 // - Nur der öffentliche anon- bzw. publishable-Key gehört hierher, niemals der service_role-Key.
 // - EMAIL_DOMAIN muss mit app_settings.email_domain in der Datenbank übereinstimmen
-//   (Standard: wardley.app, siehe supabase/schema.sql).
+//   (Standard: wardley.app, siehe supabase/schema.sql). Die App meldet mit
+//   <Mobilnummer ohne +>@<EMAIL_DOMAIN> an, zum Beispiel 41791234567@wardley.app.
 window.APP_CONFIG = {
   BACKEND: 'supabase',
   APP_NAME: 'Wardley Maps',

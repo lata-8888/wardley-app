@@ -17,19 +17,30 @@ Es gibt keine eigene Konfigurationsdatei im Repo, `config.js` entsteht beim Depl
 1. Neues Projekt anlegen (Region nahe bei den Nutzern, zum Beispiel Zürich oder Frankfurt).
 2. SQL Editor: Inhalt von `supabase/schema.sql` ausführen. Das Skript ist idempotent und darf bei
    Änderungen erneut laufen.
-3. SQL Editor: `supabase/seed.sql` ausführen. Vorher Name und PIN des ersten Admins anpassen.
-   Das legt die Person inklusive Login an. Die Token-Spalten in `auth.users` werden dabei mit `''`
-   gesetzt, nie mit `NULL`, sonst schlägt der Login fehl.
+3. SQL Editor: `supabase/seed.sql` ausführen. Vorher Name und Mobilnummer des ersten Admins anpassen.
+   Das legt die Person inklusive Login an, die PIN sind die letzten 6 Ziffern der Nummer.
+   Die Token-Spalten in `auth.users` werden dabei mit `''` gesetzt, nie mit `NULL`,
+   sonst schlägt der Login fehl.
 4. Authentication > Sign In / Providers: Öffentliche Registrierung ausschalten ("Allow new users to sign up"
    aus). Personen entstehen nur über den Admin-Tab. Ohne Profil hätte ein selbst registriertes Konto
    zwar keinen Zugriff, abschalten ist trotzdem sauberer.
 5. Project Settings > API: Project URL und den öffentlichen Key (anon bzw. publishable) notieren.
    Den service_role-Key (oder `sb_secret_...`) nie ins Repository oder in Variablen eintragen.
 
-Anmeldung: Name und PIN werden auf eine E-Mail-Adresse abgebildet (`<name in a-z0-9>@<EMAIL_DOMAIN>`),
-genau wie bei FBRO. Aus "Anna Müller" wird `annamller@wardley.app`. Umlaute und Sonderzeichen fallen weg,
-deshalb sollte jeder Name mindestens einen Buchstaben a–z oder eine Ziffer enthalten und sich von den anderen
-unterscheiden.
+Anmeldung: Mobilnummer und PIN, wie bei FBRO. Die App macht aus der Nummer eine E-Mail-Adresse:
+`<Ziffern ohne +>@<EMAIL_DOMAIN>`, zum Beispiel `41791234567@wardley.app`. Die PIN ist das Passwort.
+
+- Nummern werden normalisiert. `079 123 45 67`, `+41 79 123 45 67`, `0041 79 123 45 67` und
+  `+41 (0)79 123 45 67` ergeben dieselbe Nummer `+41791234567`. Nummern mit 0 am Anfang gelten als Schweizer
+  Nummern. Andere Länder gehen mit Ländervorwahl (`+49 170 1234567` oder `0049 170 1234567`).
+  Zu kurze oder ungültige Nummern werden abgelehnt. Jede Nummer kann nur einmal registriert werden.
+- Die PIN hat 6 Ziffern. Standard sind die letzten 6 Ziffern der Mobilnummer. Ein Admin kann beim Anlegen eine
+  andere PIN setzen oder die PIN später zurücksetzen (leer lassen = Standard-PIN). Personen können ihre PIN
+  nicht selbst ändern.
+- Die Mobilnummern sind in der Datenbank nur für Admins lesbar (Spaltenrechte und `admin_list_users()`).
+  Normale Mitglieder sehen von anderen nur Name und Rolle.
+- Die Normalisierung steckt doppelt im Code: `normPhone()` in `app.js` und `normalize_phone()` in `schema.sql`.
+  Bei Änderungen beide anpassen und die Testfälle für Nummernformate erneut durchspielen.
 
 `EMAIL_DOMAIN` (Standard `wardley.app`) muss in zwei Stellen gleich sein:
 Repository-Variable `EMAIL_DOMAIN` und Tabelle `app_settings` (`email_domain`) in der Datenbank.
@@ -80,19 +91,21 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 
 ## 4. Regressionstest (manuell, nach jeder Änderung)
 
-- Login mit richtiger und falscher PIN, Logout.
+- Login mit Mobilnummer und PIN in verschiedenen Schreibweisen (`079 123 45 67`, `+41 79 123 45 67`,
+  `0041 79 123 45 67`), mit falscher PIN, mit ungültiger oder zu kurzer Nummer, Logout.
 - Library: Map anlegen (leer und Vorlage), duplizieren, teilen, löschen, JSON-Import.
 - Designer: Baustein setzen, verschieben, verbinden, Entwicklungspfeil, Undo und Redo, Autosave,
   Version speichern und wiederherstellen, Export SVG und JSON.
 - Rechte: Leser kann nichts ändern, Bearbeiter kann nicht teilen oder löschen, fremde Maps sind unsichtbar.
-- Admin: Person anlegen, Admin-Rolle ändern, deaktivieren (Login schlägt danach fehl), PIN zurücksetzen,
-  löschen (Maps gehen an die löschende Person über).
+- Admin: Person mit Mobilnummer anlegen (PIN leer lassen ergibt die letzten 6 Ziffern), dieselbe Nummer in
+  anderer Schreibweise nochmals anlegen (muss scheitern), Admin-Rolle ändern, deaktivieren (Login schlägt danach fehl),
+  PIN zurücksetzen (leer = Standard-PIN), löschen (Maps gehen an die löschende Person über).
 
 ## 5. Fehlersuche
 
 | Symptom | Ursache und Lösung |
 |---|---|
-| "Name oder PIN falsch" trotz richtiger Daten | Passt `EMAIL_DOMAIN` zu `app_settings`? In `auth.users` prüfen: `select email from auth.users limit 5;`. Sind die Token-Spalten `''` statt `NULL`? |
+| "Nummer oder PIN falsch" trotz richtiger Daten | Passt `EMAIL_DOMAIN` zu `app_settings`? In `auth.users` prüfen: `select email from auth.users limit 5;` (erwartet: `41791234567@wardley.app`). Sind die Token-Spalten `''` statt `NULL`? Hat ein Admin die PIN geändert? |
 | Start zeigt "config.js unvollständig" | Repository-Variablen fehlen oder sind leer, Deployment neu auslösen |
 | Alte Version nach dem Deployment | Service Worker cached `config.js` und die Shell: hart neu laden (Strg+Shift+R) oder Service Worker unregistern |
 | Karte lässt sich nicht speichern | Rolle prüfen (Leser?), Konsole auf RLS-Fehler ansehen, `schema.sql` in dieser Umgebung ausgeführt? |

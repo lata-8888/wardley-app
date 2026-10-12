@@ -22,6 +22,31 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
+/* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
+// Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
+// (+49 170 1234567, 0049 170 1234567). Ergebnis: +41791234567 oder null (ungültig, zu kurz).
+// Muss mit normalize_phone() in supabase/schema.sql übereinstimmen.
+function normPhone(input) {
+  let s = String(input == null ? '' : input).replace(/\(0\)/g, '').replace(/[^0-9+]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  else if (s.startsWith('0')) s = '+41' + s.slice(1);
+  else if (/^41[0-9]{9}$/.test(s)) s = '+' + s;
+  if (!/^\+[1-9][0-9]{7,14}$/.test(s)) return null;
+  if (s.startsWith('+41') && s.length !== 12) return null;
+  return s;
+}
+const defaultPin = phone => String(phone || '').replace(/\D/g, '').slice(-6);   // letzte 6 Ziffern
+const phoneToEmail = phone => {
+  const n = normPhone(phone);
+  return n ? n.slice(1) + '@' + (CFG.EMAIL_DOMAIN || 'wardley.app') : null;
+};
+const fmtPhone = phone => {
+  const n = normPhone(phone);
+  if (!n) return String(phone || '');
+  const d = n.slice(1);
+  return n.startsWith('+41') ? `+41 ${d.slice(2, 4)} ${d.slice(4, 7)} ${d.slice(7, 9)} ${d.slice(9, 11)}` : n;
+};
+
 /* ---------- Geometrie und Rendering der Map ---------- */
 const STAGES = ['Genesis', 'Custom built', 'Product', 'Commodity'];
 const G = { W: 1000, H: 640, X0: 90, X1: 970, Y0: 30, Y1: 560 };
@@ -148,8 +173,8 @@ const LS_DB = 'wm.db.v1', LS_SES = 'wm.session.v1';
 let db = null;
 
 function seed() {
-  const U = (name, pin, isAdmin) => ({ id: uid(), name, pin, isAdmin, active: true, created: now() });
-  const admin = U('Admin', '1234', true), anna = U('Anna', '1111', false), ben = U('Ben', '2222', false);
+  const U = (name, phone, isAdmin) => ({ id: uid(), name, phone, pin: defaultPin(phone), isAdmin, active: true, created: now() });
+  const admin = U('Admin', '+41791111111', true), anna = U('Anna', '+41792222222', false), ben = U('Ben', '+41793333333', false);
   const m = {
     id: uid(), title: 'Online-Teeshop (Beispiel)', owner: admin.id,
     members: { [anna.id]: 'editor', [ben.id]: 'viewer' },
@@ -171,7 +196,7 @@ const roleOf = (m, u) => u.isAdmin ? 'admin' : m.owner === u.id ? 'owner' : ((m.
 const canEdit = r => r === 'admin' || r === 'owner' || r === 'editor';
 const canManage = r => r === 'admin' || r === 'owner';
 const ROLE_LABEL = { admin: 'Admin', owner: 'Besitzer', editor: 'Bearbeiter', viewer: 'Leser' };
-const validPin = p => /^\d{4,8}$/.test(String(p));
+const validPin = p => /^\d{6}$/.test(String(p));
 
 function me() {
   const id = root.localStorage.getItem(LS_SES);
@@ -190,9 +215,11 @@ const userName = id => { const u = db.users.find(x => x.id === id); return u ? u
 const LocalApi = {
   me,
   async init() { loadDb(); },
-  async login(name, pin) {
-    const u = db.users.find(x => x.active && x.name.toLowerCase() === String(name).trim().toLowerCase());
-    if (!u || u.pin !== String(pin)) throw new Error(t('Name oder PIN falsch'));
+  async login(phone, pin) {
+    const np = normPhone(phone);
+    if (!np) throw new Error(t('Mobilnummer ungültig'));
+    const u = db.users.find(x => x.active && x.phone === np);
+    if (!u || u.pin !== String(pin).trim()) throw new Error(t('Nummer oder PIN falsch'));
     root.localStorage.setItem(LS_SES, u.id);
     return u;
   },
@@ -201,13 +228,16 @@ const LocalApi = {
   /* Benutzer */
   async listUsers() { needAdmin(); return clone(db.users); },
   async listUserNames() { needUser(); return db.users.filter(u => u.active).map(u => ({ id: u.id, name: u.name })); },
-  async createUser({ name, pin, isAdmin }) {
+  async createUser({ name, phone, pin, isAdmin }) {
     needAdmin();
     name = String(name || '').trim().slice(0, 40);
     if (!name) throw new Error(t('Name fehlt'));
-    if (!validPin(pin)) throw new Error(t('PIN: 4 bis 8 Ziffern'));
-    if (db.users.some(u => u.name.toLowerCase() === name.toLowerCase())) throw new Error(t('Name existiert bereits'));
-    const u = { id: uid(), name, pin: String(pin), isAdmin: !!isAdmin, active: true, created: now() };
+    const np = normPhone(phone);
+    if (!np) throw new Error(t('Mobilnummer ungültig'));
+    pin = String(pin || '').trim() || defaultPin(np);
+    if (!validPin(pin)) throw new Error(t('PIN: 6 Ziffern'));
+    if (db.users.some(u => u.phone === np)) throw new Error(t('Mobilnummer ist bereits registriert'));
+    const u = { id: uid(), name, phone: np, pin, isAdmin: !!isAdmin, active: true, created: now() };
     db.users.push(u); persist(); return clone(u);
   },
   async updateUser(id, patch) {
@@ -221,10 +251,11 @@ const LocalApi = {
   },
   async resetPin(id, pin) {
     needAdmin();
-    if (!validPin(pin)) throw new Error(t('PIN: 4 bis 8 Ziffern'));
     const u = db.users.find(x => x.id === id);
     if (!u) throw new Error(t('Benutzer nicht gefunden'));
-    u.pin = String(pin); persist();
+    pin = String(pin || '').trim() || defaultPin(u.phone);
+    if (!validPin(pin)) throw new Error(t('PIN: 6 Ziffern'));
+    u.pin = pin; persist();
   },
   async deleteUser(id) {
     const a = needAdmin();
@@ -325,8 +356,7 @@ function makeSupabaseApi() {
     }
     return r.data;
   };
-  const loginKey = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '');
-  const toUser = p => ({ id: p.id, name: p.name, isAdmin: !!p.is_admin, active: !!p.active, created: p.created_at });
+  const toUser = p => ({ id: p.id, name: p.name, phone: p.phone, isAdmin: !!p.is_admin, active: !!p.active, created: p.created_at });
   const needUser = () => { if (!cur) throw new Error(t('Nicht angemeldet')); return cur; };
   const roleFrom = (m, u, members) => u.isAdmin ? 'admin' : m.owner_id === u.id ? 'owner' : (members[u.id] || 'viewer');
 
@@ -341,11 +371,11 @@ function makeSupabaseApi() {
   return {
     me: () => cur,
     async init() { await loadMe(); },
-    async login(name, pin) {
-      const key = loginKey(name);
-      if (!key) throw new Error(t('Name oder PIN falsch'));
-      const r = await client().auth.signInWithPassword({ email: key + '@' + CFG.EMAIL_DOMAIN, password: String(pin) });
-      if (r.error) { console.error('login', r.error); throw new Error(t('Name oder PIN falsch')); }
+    async login(phone, pin) {
+      const email = phoneToEmail(phone);
+      if (!email) throw new Error(t('Mobilnummer ungültig'));
+      const r = await client().auth.signInWithPassword({ email, password: String(pin).trim() });
+      if (r.error) { console.error('login', r.error); throw new Error(t('Nummer oder PIN falsch')); }
       await loadMe();
       if (!cur) throw new Error(t('Konto deaktiviert'));
       return cur;
@@ -354,14 +384,17 @@ function makeSupabaseApi() {
 
     async listUsers() {
       needUser();
-      return must(await client().from('profiles').select('id,name,is_admin,active,created_at').order('name')).map(toUser);
+      return must(await client().rpc('admin_list_users')).map(toUser);
     },
     async listUserNames() {
       needUser();
       return must(await client().from('profiles').select('id,name').eq('active', true).order('name'));
     },
-    async createUser({ name, pin, isAdmin }) {
-      must(await client().rpc('admin_create_user', { p_name: String(name || ''), p_pin: String(pin || ''), p_is_admin: !!isAdmin }));
+    async createUser({ name, phone, pin, isAdmin }) {
+      must(await client().rpc('admin_create_user', {
+        p_name: String(name || ''), p_phone: String(phone || ''),
+        p_pin: String(pin || '').trim() || null, p_is_admin: !!isAdmin
+      }));
     },
     async updateUser(id, patch) {
       const p = must(await client().from('profiles').select('is_admin,active').eq('id', id).single());
@@ -371,7 +404,7 @@ function makeSupabaseApi() {
         p_active: 'active' in patch ? !!patch.active : p.active
       }));
     },
-    async resetPin(id, pin) { must(await client().rpc('admin_reset_pin', { p_user: id, p_pin: String(pin || '') })); },
+    async resetPin(id, pin) { must(await client().rpc('admin_reset_pin', { p_user: id, p_pin: String(pin || '').trim() || null })); },
     async deleteUser(id) { must(await client().rpc('admin_delete_user', { p_user: id })); },
 
     async listMaps() {
@@ -470,14 +503,15 @@ const view = () => $('#view');
 /* ---------- Login und Shell ---------- */
 function renderLogin() {
   $('#app').innerHTML = `<div class="login"><div class="card">
-    <h1>${t('Wardley Maps')}</h1><p class="meta">${t('Anmelden')}</p>
+    <h1>${t('Wardley Maps')}</h1><p class="meta">${t('Anmelden mit Mobilnummer und PIN')}</p>
     <form id="lf" autocomplete="off">
-      <label>${t('Name')}<input id="ln" required maxlength="40" autofocus></label>
-      <label>${t('PIN')}<input id="lp" type="password" inputmode="numeric" required maxlength="8"></label>
+      <label>${t('Mobilnummer')}<input id="ln" type="tel" inputmode="tel" autocomplete="username" placeholder="079 123 45 67" required maxlength="30" autofocus></label>
+      <label>${t('PIN')}<input id="lp" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="6" pattern="[0-9]{6}"></label>
       <div class="error" id="le"></div>
       <button class="btn primary" style="width:100%;margin-top:6px">${t('Anmelden')}</button>
     </form>
-    ${CFG.BACKEND === 'supabase' ? '' : `<p class="hint">${t('Prototyp: Daten liegen nur in diesem Browser.')}<br>Demo: Admin / 1234 · Anna / 1111 · Ben / 2222</p>`}
+    <p class="hint">${t('Deine PIN sind die letzten 6 Ziffern deiner Mobilnummer, solange kein Admin sie geändert hat.')}</p>
+    ${CFG.BACKEND === 'supabase' ? '' : `<p class="hint">${t('Prototyp: Daten liegen nur in diesem Browser.')}<br>Demo: 079 111 11 11 (Admin) · 079 222 22 22 (Anna) · 079 333 33 33 (Ben), PIN 111111, 222222, 333333</p>`}
   </div></div>`;
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
@@ -604,17 +638,19 @@ async function viewAdmin() {
     <div class="card" style="margin-bottom:16px"><h2>${t('Person anlegen')}</h2>
       <form id="cf" class="form-row" autocomplete="off">
         <label>${t('Name')}<input id="cn" required maxlength="40"></label>
-        <label>${t('PIN')} (4–8)<input id="cp" required maxlength="8" inputmode="numeric"></label>
+        <label>${t('Mobilnummer')}<input id="cm" type="tel" inputmode="tel" required maxlength="30" placeholder="079 123 45 67"></label>
+        <label>${t('PIN (leer = letzte 6 Ziffern)')}<input id="cp" maxlength="6" inputmode="numeric" pattern="[0-9]{6}"></label>
         <label class="chk" style="flex:0 0 auto"><input type="checkbox" id="ca"> ${t('Admin')}</label>
         <button class="btn primary">${t('Anlegen')}</button></form></div>
     <div class="card"><h2>${t('Personen')}</h2><div style="overflow:auto"><table><thead><tr>
-      <th>${t('Name')}</th><th>${t('Rolle')}</th><th>${t('Status')}</th><th>${t('Maps')}</th><th></th></tr></thead><tbody id="ub"></tbody></table></div></div>`;
+      <th>${t('Name')}</th><th>${t('Mobilnummer')}</th><th>${t('Rolle')}</th><th>${t('Status')}</th><th>${t('Maps')}</th><th></th></tr></thead><tbody id="ub"></tbody></table></div></div>`;
   const body = $('#ub');
   const draw = () => {
     body.innerHTML = users.map(u => {
       const self = u.id === me0.id;
       const n = maps.filter(m => m.owner === u.id).length;
       return `<tr><td>${esc(u.name)}${self ? ` <span class="meta">(${t('du')})</span>` : ''}</td>
+        <td>${esc(fmtPhone(u.phone))}</td>
         <td>${u.isAdmin ? 'Admin' : t('Mitglied')}</td><td>${u.active ? t('aktiv') : t('deaktiviert')}</td><td>${n}</td>
         <td><div class="row-actions">
           <button class="btn small" data-act="admin" data-id="${esc(u.id)}" ${self ? 'disabled' : ''}>${u.isAdmin ? t('Admin entziehen') : t('Zum Admin machen')}</button>
@@ -628,7 +664,7 @@ async function viewAdmin() {
   const reload = () => viewAdmin();
   $('#cf').addEventListener('submit', async e => {
     e.preventDefault();
-    try { await API.createUser({ name: $('#cn').value, pin: $('#cp').value, isAdmin: $('#ca').checked }); toast(t('Person angelegt')); reload(); }
+    try { await API.createUser({ name: $('#cn').value, phone: $('#cm').value, pin: $('#cp').value, isAdmin: $('#ca').checked }); toast(t('Person angelegt')); reload(); }
     catch (err) { fail(err); }
   });
   body.addEventListener('click', async e => {
@@ -640,7 +676,7 @@ async function viewAdmin() {
       else if (el.dataset.act === 'active') { await API.updateUser(id, { active: !u.active }); reload(); }
       else if (el.dataset.act === 'pin') {
         const md = modal(`<h2>${t('PIN zurücksetzen')}: ${esc(u.name)}</h2>
-          <label>${t('Neue PIN')} (4–8)<input id="np" maxlength="8" inputmode="numeric" autofocus></label>
+          <label>${t('Neue PIN (leer = letzte 6 Ziffern der Mobilnummer)')}<input id="np" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autofocus></label>
           <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Speichern')}</button></div>`);
         $('#ok', md.el).onclick = async () => { try { await API.resetPin(id, $('#np', md.el).value); md.close(); toast(t('PIN gesetzt')); } catch (err) { fail(err); } };
       }
@@ -908,6 +944,6 @@ async function boot() {
 }
 
 if (typeof document !== 'undefined' && document.getElementById('app')) boot();
-root.WM = { API, mapSvg, sanitize, teaTemplate, loadDb, CFG, makeSupabaseApi };
+root.WM = { API, mapSvg, sanitize, teaTemplate, loadDb, CFG, makeSupabaseApi, normPhone, fmtPhone, defaultPin, phoneToEmail };
 
 })(typeof window !== 'undefined' ? window : globalThis);
