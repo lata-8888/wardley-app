@@ -45,7 +45,9 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
           EMAIL_DOMAIN: ${{ vars.EMAIL_DOMAIN }}
-        run: node scripts/build.js
+        run: |
+          echo "::notice title=Variablen::SUPABASE_URL=${#SUPABASE_URL} Zeichen, SUPABASE_ANON_KEY=${#SUPABASE_ANON_KEY} Zeichen, EMAIL_DOMAIN=${EMAIL_DOMAIN:-leer}"
+          node scripts/build.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
