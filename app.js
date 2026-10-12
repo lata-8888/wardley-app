@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -615,7 +615,7 @@ const ICON = {
   fname: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
   ftype: '<circle cx="7.5" cy="7.5" r="3.5"/><rect x="13" y="13" width="7" height="7" rx="1"/><path d="M17 3l4 7h-8z" transform="translate(-6 -1) scale(.9)"/>',
   fcat: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
-  flabel: '<rect x="4" y="9" width="8" height="6" rx="1"/><path d="M15 8h5M15 12h5M15 16h5"/>',
+  flabel: '<path d="M4 9V4h5M4 4l5 5M20 9V4h-5M20 4l-5 5M4 15v5h5M4 20l5-5M20 15v5h-5M20 20l-5-5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
   fevo: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   fdesc: '<path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
