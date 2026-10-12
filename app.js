@@ -707,8 +707,7 @@ async function viewLibrary() {
         <span class="badge ${m.role === 'viewer' ? 'gray' : ''}">${t(ROLE_LABEL[m.role])}</span>
         <button class="ibtn flat" data-act="menu" data-id="${esc(m.id)}" aria-label="${t('Weitere Aktionen')}: ${esc(m.title)}" title="${t('Weitere Aktionen')}">${ic('more')}</button></div>
       <div class="thumb" data-act="open" data-id="${esc(m.id)}">${mapSvg(m.data, { id: 't' + m.id })}</div>
-      <div class="cbody"><div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}</div>
-        <div class="crow"><button class="btn out" data-act="open" data-id="${esc(m.id)}">${ic(canEdit(m.role) ? 'open' : 'select')} ${canEdit(m.role) ? t('Öffnen') : t('Ansehen')}</button></div></div></article>`;
+      <div class="cbody"><div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}</div></div></article>`;
     }).join('');
   };
   draw();
