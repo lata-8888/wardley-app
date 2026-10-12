@@ -451,7 +451,14 @@ function makeSupabaseApi() {
       const email = phoneToEmail(phone);
       if (!email) throw new Error(t('Mobilnummer ungültig'));
       const r = await client().auth.signInWithPassword({ email, password: String(pin).trim() });
-      if (r.error) { console.error('login', r.error); throw new Error(t('Nummer oder PIN falsch')); }
+      if (r.error) {
+        console.error('login', r.error);
+        const m = String(r.error.message || '');
+        if (/rate limit|too many/i.test(m)) throw new Error(t('Zu viele Versuche. Bitte warte einen Moment.'));
+        if (/fetch|network|load failed|retryable/i.test(m + ' ' + (r.error.name || '')) || r.error.status === 0 || r.error.status >= 500)
+          throw new Error(t('Anmeldung fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.'));
+        throw new Error(t('Nummer oder PIN falsch'));
+      }
       await loadMe();
       if (!cur) throw new Error(t('Konto deaktiviert'));
       return cur;

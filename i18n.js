@@ -84,6 +84,8 @@ window.WM_I18N = {
     'Noch niemand.': 'Nobody yet.',
     'Notiz': 'Note',
     'Nummer oder PIN falsch': 'Wrong number or PIN',
+    'Zu viele Versuche. Bitte warte einen Moment.': 'Too many attempts. Please wait a moment.',
+    'Anmeldung fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.': 'Sign-in failed. Check your connection and try again.',
     'Nur Besitzer oder Admin': 'Owner or admin only',
     'Nur für Admins': 'Admins only',
     'Nur für Admins sichtbar': 'Visible to admins only',
