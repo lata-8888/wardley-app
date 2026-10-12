@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -612,6 +612,12 @@ const ICON = {
   library: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
+  fname: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+  ftype: '<circle cx="7.5" cy="7.5" r="3.5"/><rect x="13" y="13" width="7" height="7" rx="1"/><path d="M17 3l4 7h-8z" transform="translate(-6 -1) scale(.9)"/>',
+  fcat: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  flabel: '<rect x="4" y="9" width="8" height="6" rx="1"/><path d="M15 8h5M15 12h5M15 16h5"/>',
+  fevo: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+  fdesc: '<path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
   moon: '<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
@@ -996,23 +1002,23 @@ async function viewDesigner(id) {
     panel.hidden = !n;
     if (!n) { panel.innerHTML = ''; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
-    const linkHtml = `<h3 style="margin-top:14px">${t('Verbindungen')}</h3><div class="links-list">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div>`;
+    const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
       panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker (Nutzer)') : n.type === 'note' ? t('Notiz') : n.build ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
     const comp = n.type === 'component';
-    panel.innerHTML = `<h3>${t('Baustein')}</h3>
-      <label>${t('Name')}<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80"></label>
-      <label>${t('Typ')}<select data-f="type">${opt(TYPES, n.type, v => ({ component: t('Baustein'), anchor: t('Anker (Nutzer)'), note: t('Notiz') }[v]))}</select></label>
-      ${comp ? `<label>${t('Kategorie')}<select data-f="build">${opt(['std', 'diff'], n.build ? 'diff' : 'std', v => v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select></label>` : ''}
-      <label>${t('Beschriftung')}<select data-f="label">${opt(LABELS, n.label, v => ({ right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select></label>
-      ${n.type !== 'note' ? `<label>${t('Entwicklung')}</label><div class="evo"><label class="chk" style="margin:0"><input type="checkbox" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''}> ${t('Pfeil')}</label>
-        <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}"></div>` : ''}
-      <label>${t('Beschreibung')}<textarea data-f="desc" rows="3" maxlength="500">${esc(n.desc)}</textarea></label>
+    const row = (icon, label, ctl) => `<div class="frow" title="${esc(label)}">${ic(icon)}${ctl}</div>`;
+    panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
+      ${row('ftype', t('Typ'), `<select data-f="type" aria-label="${t('Typ')}">${opt(TYPES, n.type, v => ({ component: t('Baustein'), anchor: t('Anker (Nutzer)'), note: t('Notiz') }[v]))}</select>`)}
+      ${comp ? row('fcat', t('Kategorie'), `<select data-f="build" aria-label="${t('Kategorie')}">${opt(['std', 'diff'], n.build ? 'diff' : 'std', v => v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select>`) : ''}
+      ${row('flabel', t('Beschriftung'), `<select data-f="label" aria-label="${t('Beschriftung')}">${opt(LABELS, n.label, v => ({ right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select>`)}
+      ${n.type !== 'note' ? row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
+        <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`) : ''}
+      ${row('fdesc', t('Beschreibung'), `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
       ${linkHtml}
-      <button class="btn danger" style="margin-top:14px" data-act="del">${t('Baustein löschen')}</button>`;
+      <button class="btn danger" style="margin-top:10px" data-act="del">${t('Baustein löschen')}</button>`;
   }
 
   panel.addEventListener('focusin', e => { if (edit && e.target.dataset && e.target.dataset.f) pushUndo(); });

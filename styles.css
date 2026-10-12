@@ -207,3 +207,11 @@ body.wide .top,body.wide main{max-width:1100px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){#toast,.acc .chev{transition:none}}
 @media (max-width:900px){.d-main{grid-template-columns:1fr}#status{margin-left:0}}
+
+.frow{display:flex;align-items:center;gap:10px;margin:8px 0}
+.frow>.ic{width:22px;height:22px;flex:0 0 auto;color:var(--muted)}
+.frow input:not([type=checkbox]):not([type=range]),.frow select,.frow textarea{flex:1;min-width:0;margin-top:0;width:100%}
+.frow input[type=range]{flex:1;min-width:0}
+.frow .evochk{flex:0 0 auto;width:20px;height:20px;margin:0}
+.frow textarea{resize:vertical}
+.d-panel .links-list{margin-top:4px}
