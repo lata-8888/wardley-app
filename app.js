@@ -596,7 +596,7 @@ function renderLogin() {
     <p class="sub">${t('Melde dich mit deiner Mobilnummer an.')}</p>
     <form id="lf" autocomplete="off">
       <label>${t('Mobilnummer')}${phoneField('lcc', 'ln')}</label>
-      <label>${t('PIN (nur nötig, wenn ein Admin sie geändert hat)')}<input id="lp" class="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" pattern="[0-9]{6}" placeholder="······"></label>
+      <label>${t('PIN')}<input id="lp" class="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" pattern="[0-9]{6}" placeholder="······"></label>
       <div class="error" id="le"></div>
       <button class="btn dark block">${t('Anmelden')}</button>
     </form>
