@@ -152,9 +152,9 @@ body.wide .top,body.wide main{max-width:1100px}
 .brand2{line-height:1;margin:0}
 .brand2 svg{display:block;width:240px;max-width:62vw;height:auto;fill:currentColor;overflow:visible}
 .brand2 .l1{font-family:var(--font-head);font-weight:700;font-size:50px}
-.brand2 .l2{font-family:var(--font-head);font-weight:500;font-size:26px;fill:var(--muted)}
-.logo-big{height:4.6rem;width:auto;flex:0 0 auto}
-.login .sub{color:var(--muted);margin-bottom:28px;max-width:34ch}
+.brand2 .l2{font-family:var(--font-head);font-weight:500;font-size:26px;fill:#007BC3}
+.logo-big{height:6.2rem;width:auto;flex:0 0 auto}
+.login .sub{color:var(--muted);margin:14px 0 48px;max-width:34ch}
 .hint{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:14px;color:var(--muted);font-size:.9rem}
 .error{color:var(--no);font-weight:500;min-height:20px;margin:-6px 0 14px}
 

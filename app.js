@@ -590,9 +590,9 @@ function sheet(title, items) {
 /* ---------- Login und Shell ---------- */
 function renderLogin() {
   $('#app').innerHTML = `<div class="login">
-    <div class="lhead"><h1 class="brand2" aria-label="Wardley mAPP inspired by Andrea"><svg viewBox="0 0 240 86" role="img" aria-hidden="true">
+    <div class="lhead"><h1 class="brand2" aria-label="Wardley mAPP inspired by Andrea"><svg viewBox="0 0 240 104" role="img" aria-hidden="true">
         <text x="0" y="47" textLength="240" lengthAdjust="spacingAndGlyphs" class="l1">Wardley mAPP</text>
-        <text x="0" y="78" textLength="240" lengthAdjust="spacingAndGlyphs" class="l2">inspired by Andrea</text></svg></h1><img class="logo-big" src="icons/logo.png" alt=""></div>
+        <text x="0" y="98" textLength="240" lengthAdjust="spacingAndGlyphs" class="l2">inspired by Andrea</text></svg></h1><img class="logo-big" src="icons/logo.png" alt=""></div>
     <p class="sub">${t('Melde dich mit deiner Mobilnummer an.')}</p>
     <form id="lf" autocomplete="off">
       <label>${t('Mobilnummer')}${phoneField('lcc', 'ln')}</label>
