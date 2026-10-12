@@ -62,6 +62,7 @@ window.WM_I18N = {
     'Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.': 'Add the app to your home screen to open it in full screen.',
     'Legende': 'Legend',
     'Info': 'Info',
+    'Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.': 'Double-click (double-tap) zooms in and out. While zoomed, drag on an empty area to move the view.',
     'Leser': 'Viewer',
     'Library': 'Library',
     'Löschen': 'Delete',

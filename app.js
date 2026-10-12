@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -930,11 +930,26 @@ async function viewDesigner(id) {
   const snap = () => JSON.stringify(data);
   const syncBtns = () => { if (!edit) return; $('#undo').disabled = !undo.length; $('#redo').disabled = !redo.length; };
   const pushUndo = () => { undo.push(snap()); if (undo.length > 100) undo.shift(); redo.length = 0; syncBtns(); };
-  const draw = () => { host.innerHTML = mapSvg(data, { id: 'd', sel, linkFrom }); };
+  /* Zoom: Doppelklick / Doppeltippen zoomt hinein und wieder heraus; im Zoom verschiebt Ziehen auf leerer Fläche den Ausschnitt */
+  const ZOOM = 2.5;
+  let vp = { x: 0, y: 0, w: G.W, h: G.H };
+  const applyView = () => {
+    const sv = host.querySelector('svg');
+    if (sv) sv.setAttribute('viewBox', `${vp.x} ${vp.y} ${vp.w} ${vp.h}`);
+    host.style.touchAction = vp.w < G.W ? 'none' : '';
+    host.classList.toggle('zoomed', vp.w < G.W);
+  };
+  const draw = () => { host.innerHTML = mapSvg(data, { id: 'd', sel, linkFrom }); applyView(); };
   const toSvg = e => {
     const r = host.querySelector('svg').getBoundingClientRect();
-    return { x: (e.clientX - r.left) / r.width * G.W, y: (e.clientY - r.top) / r.height * G.H };
+    return { x: vp.x + (e.clientX - r.left) / r.width * vp.w, y: vp.y + (e.clientY - r.top) / r.height * vp.h };
   };
+  const zoomAt = pt => {
+    if (vp.w < G.W) vp = { x: 0, y: 0, w: G.W, h: G.H };
+    else { const w = G.W / ZOOM, h = G.H / ZOOM; vp = { x: clamp(pt.x - w / 2, 0, G.W - w), y: clamp(pt.y - h / 2, 0, G.H - h), w, h }; }
+    draw();
+  };
+  let pan = null, lastTap = null;
 
   async function flush() {
     clearTimeout(saveT);
@@ -1037,6 +1052,11 @@ async function viewDesigner(id) {
   /* Canvas-Interaktion */
   host.addEventListener('pointerdown', e => {
     const g = e.target.closest('[data-node]'), pt = toSvg(e);
+    if (!g && vp.w < G.W && (!edit || tool === 'select')) {
+      const r = host.querySelector('svg').getBoundingClientRect();
+      pan = { cx: e.clientX, cy: e.clientY, vx: vp.x, vy: vp.y, k: vp.w / r.width, moved: false };
+      try { host.setPointerCapture(e.pointerId); } catch (err) { /* ignorieren */ }
+    }
     if (!edit) { select(g ? g.dataset.node : null); return; }
     if (tool === 'add' && !g) {
       pushUndo();
@@ -1065,6 +1085,15 @@ async function viewDesigner(id) {
     } else select(null);
   });
   host.addEventListener('pointermove', e => {
+    if (pan) {
+      const dx = e.clientX - pan.cx, dy = e.clientY - pan.cy;
+      if (Math.abs(dx) + Math.abs(dy) > 6) pan.moved = true;
+      if (pan.moved) {
+        vp.x = clamp(pan.vx - dx * pan.k, 0, G.W - vp.w); vp.y = clamp(pan.vy - dy * pan.k, 0, G.H - vp.h);
+        applyView();
+      }
+      return;
+    }
     if (!drag) return;
     const pt = toSvg(e), n = byId(drag.id); if (!n) return;
     if (!drag.moved) { pushUndo(); drag.moved = true; }
@@ -1072,9 +1101,17 @@ async function viewDesigner(id) {
     n.y = clamp(ny(pt.y - drag.dy), 0, 1);
     draw();
   });
-  const endDrag = () => { if (drag && drag.moved) changed(); drag = null; };
+  let justDragged = false;
+  const endDrag = () => { justDragged = !!(drag && drag.moved); if (drag && drag.moved) changed(); drag = null; };
   host.addEventListener('pointerup', endDrag);
   host.addEventListener('pointercancel', endDrag);
+  host.addEventListener('pointerup', e => {
+    const wasPan = pan && pan.moved; pan = null;
+    if (wasPan || (edit && tool !== 'select') || justDragged) { lastTap = null; return; }
+    const now = Date.now();
+    if (lastTap && now - lastTap.t < 380 && Math.abs(e.clientX - lastTap.x) + Math.abs(e.clientY - lastTap.y) < 40) { lastTap = null; zoomAt(toSvg(e)); }
+    else lastTap = { t: now, x: e.clientX, y: e.clientY };
+  });
 
   const onKey = e => {
     if (!edit) return;
@@ -1096,6 +1133,7 @@ async function viewDesigner(id) {
       <div class="legend"><span class="dot std"></span>${t('Standard, einkaufen')}</div>
       <div class="legend"><span class="dot diff"></span>${t('Selbst bauen (Differenzierung)')}</div>
       <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
+      <p class="meta">${t('Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.')}</p>
       <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>
       <div class="foot"><button class="btn" data-close>${t('Schliessen')}</button></div>`);
     const load = async () => {
