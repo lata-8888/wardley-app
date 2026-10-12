@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -916,14 +916,14 @@ async function viewDesigner(id) {
 
   setTop('', { back: '#/library',
     titleHtml: `<input class="title" id="mt" value="${esc(title)}" maxlength="100" ${edit ? '' : 'readonly'} aria-label="${t('Titel')}">`,
-    right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
+    right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('mapinfo', 'info', t('Info'))}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
   view().innerHTML = `<div class="d-toolbar">
       ${edit ? `<div class="tools"><button class="tbtn tool active" data-tool="select">${ic('select')}<span>${t('Auswählen')}</span></button>
       <button class="tbtn tool" data-tool="add">${ic('node')}<span>${t('Baustein')}</span></button>
       <button class="tbtn tool" data-tool="link">${ic('link')}<span>${t('Verbinden')}</span></button></div>
       ${iconBtn('undo', 'undo', t('Rückgängig'))}${iconBtn('redo', 'redo', t('Wiederholen'))}` : ''}
       <span id="status">${t('Gespeichert')}</span></div>
-    <div class="d-main"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel card" id="panel"></aside></div>`;
+    <div class="d-main nopanel" id="dmain"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel card" id="panel" hidden></aside></div>`;
   const host = $('#canvas'), panel = $('#panel'), status = $('#status');
 
   const byId = k => data.nodes.find(n => n.id === k);
@@ -965,20 +965,9 @@ async function viewDesigner(id) {
   async function renderPanel() {
     const n = sel && byId(sel);
     panelKey = n ? n.id : '';
-    if (!n) {
-      panel.innerHTML = `<h3>${t('Legende')}</h3>
-        <div class="legend"><span class="dot anchor"></span>${t('Anker (Nutzer)')}</div>
-        <div class="legend"><span class="dot std"></span>${t('Standard, einkaufen')}</div>
-        <div class="legend"><span class="dot diff"></span>${t('Selbst bauen (Differenzierung)')}</div>
-        <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
-        <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>`;
-      try {
-        const vs = await API.listVersions(id);
-        const box = $('#vl', panel); if (!box) return;
-        box.innerHTML = vs.length ? vs.map(v => `<div class="vrow"><span>${esc(v.label || t('Version'))}<br><small>${esc(fmtDate(v.created))} · ${esc(v.byName)}</small></span>${edit ? `<button class="btn small" data-restore="${esc(v.id)}">${t('Wiederherstellen')}</button>` : ''}</div>`).join('') : t('Noch keine Versionen.');
-      } catch (e) { console.error(e); }
-      return;
-    }
+    $('#dmain').classList.toggle('nopanel', !n);
+    panel.hidden = !n;
+    if (!n) { panel.innerHTML = ''; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<h3 style="margin-top:14px">${t('Verbindungen')}</h3><div class="links-list">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div>`;
     if (!edit) {
@@ -1099,6 +1088,35 @@ async function viewDesigner(id) {
   document.addEventListener('keydown', onKey);
   cleanup = () => { flush(); document.removeEventListener('keydown', onKey); cleanup = () => {}; };
 
+  /* Info (Legende, Hinweise, Versionen) hinter dem Info-Symbol oben rechts */
+  async function showInfo() {
+    const md = modal(`<h2>${t('Info')}</h2>
+      <h3>${t('Legende')}</h3>
+      <div class="legend"><span class="dot anchor"></span>${t('Anker (Nutzer)')}</div>
+      <div class="legend"><span class="dot std"></span>${t('Standard, einkaufen')}</div>
+      <div class="legend"><span class="dot diff"></span>${t('Selbst bauen (Differenzierung)')}</div>
+      <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
+      <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>
+      <div class="foot"><button class="btn" data-close>${t('Schliessen')}</button></div>`);
+    const load = async () => {
+      try {
+        const vs = await API.listVersions(id);
+        const box = $('#vl', md.el); if (!box) return;
+        box.innerHTML = vs.length ? vs.map(v => `<div class="vrow"><span>${esc(v.label || t('Version'))}<br><small>${esc(fmtDate(v.created))} · ${esc(v.byName)}</small></span>${edit ? `<button class="btn small" data-restore="${esc(v.id)}">${t('Wiederherstellen')}</button>` : ''}</div>`).join('') : t('Noch keine Versionen.');
+      } catch (e) { console.error(e); }
+    };
+    md.el.addEventListener('click', async e => {
+      const rs = edit && e.target.dataset && e.target.dataset.restore;
+      if (!rs) return;
+      try {
+        const d = await API.getVersionData(id, rs);
+        pushUndo(); data = sanitize(d); sel = null; draw(); renderPanel(); changed(); md.close(); toast(t('Version wiederhergestellt'));
+      } catch (err) { fail(err); }
+    });
+    load();
+  }
+  $('#mapinfo').onclick = showInfo;
+
   /* Toolbar */
   let saveVersion = () => {};
   if (edit) {
@@ -1111,7 +1129,7 @@ async function viewDesigner(id) {
         <label>${t('Bezeichnung')}<input id="vlab" maxlength="80" placeholder="${t('z. B. Stand Q4')}" autofocus></label>
         <div class="foot"><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Speichern')}</button></div>`);
       $('#ok', md.el).onclick = async () => {
-        try { await flush(); await API.addVersion(id, $('#vlab', md.el).value); md.close(); toast(t('Version gespeichert')); if (!sel) renderPanel(); }
+        try { await flush(); await API.addVersion(id, $('#vlab', md.el).value); md.close(); toast(t('Version gespeichert')); }
         catch (err) { fail(err); }
       };
     };
