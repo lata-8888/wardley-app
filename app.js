@@ -290,6 +290,13 @@ const LocalApi = {
     if ('active' in patch) u.active = !!patch.active;
     persist(); return clone(u);
   },
+  async changeOwnPin(pin) {
+    const me0 = needUser();
+    const u = db.users.find(x => x.id === me0.id);
+    pin = String(pin || '').trim() || defaultPin(u.phone);
+    if (!validPin(pin)) throw new Error(t('PIN: 6 Ziffern'));
+    u.pin = pin; persist();
+  },
   async resetPin(id, pin) {
     needAdmin();
     const u = db.users.find(x => x.id === id);
@@ -407,6 +414,9 @@ function makeSupabaseApi() {
     const p = must(await client().from('profiles').select('id,name,is_admin,active,created_at').eq('id', s.user.id).maybeSingle());
     if (!p || !p.active) { await client().auth.signOut(); cur = null; return; }
     cur = toUser(p);
+    // Die Mobilnummer steckt in der Login-Adresse (<Ziffern>@<Domain>); die Spalte phone ist für Nicht-Admins nicht lesbar
+    const m = /^(\d{8,15})@/.exec(String(s.user.email || ''));
+    if (m) cur.phone = '+' + m[1];
   }
 
   return {
@@ -444,6 +454,13 @@ function makeSupabaseApi() {
         p_is_admin: 'isAdmin' in patch ? !!patch.isAdmin : p.is_admin,
         p_active: 'active' in patch ? !!patch.active : p.active
       }));
+    },
+    async changeOwnPin(pin) {
+      needUser();
+      pin = String(pin || '').trim() || defaultPin(cur.phone);
+      if (!validPin(pin)) throw new Error(t('PIN: 6 Ziffern'));
+      const r = await client().auth.updateUser({ password: pin });
+      if (r.error) { console.error('pin', r.error); throw new Error(r.error.message); }
     },
     async resetPin(id, pin) { must(await client().rpc('admin_reset_pin', { p_user: id, p_pin: String(pin || '').trim() || null })); },
     async deleteUser(id) { must(await client().rpc('admin_delete_user', { p_user: id })); },
@@ -655,8 +672,11 @@ async function viewProfile() {
         `<button type="button" role="radio" aria-checked="${prefs.theme === v}" data-v="${v}" class="${prefs.theme === v ? 'on' : ''}">${ic(i)}<span>${l}</span></button>`).join('')}</div></div>
     ${standalone ? '' : `<div class="card pad"><h2>${t('App installieren')}</h2><p class="desc">${t('Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.')}</p>
       ${installPrompt ? `<button class="btn out block" id="inst">${t('Installieren')}</button>` : `<p class="meta">${iosHint ? t('Tippe in Safari auf «Teilen» und dann auf «Zum Home-Bildschirm».') : t('Im Browser-Menü: «Zum Startbildschirm hinzufügen» bzw. «App installieren».')}</p>`}</div>`}
-    <div class="card pad"><div class="kv"><span>${t('Daten')}</span><b>${CFG.BACKEND === 'supabase' ? 'Supabase' : t('Nur in diesem Browser')}</b></div>
-      <p class="meta">${t('Deine PIN kann nur ein Admin zurücksetzen.')}</p></div>
+    <div class="card pad"><h2>${t('PIN ändern')}</h2><p class="desc">${t('Wähle eine eigene PIN mit 6 Ziffern. Ohne eigene PIN gelten die letzten 6 Ziffern deiner Mobilnummer. Vergisst du sie, setzt ein Admin sie zurück.')}</p>
+      <form id="pf" autocomplete="off"><label>${t('Neue PIN')}<input id="np" class="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" required></label>
+      <button class="btn dark block">${t('PIN speichern')}</button></form>
+      <button type="button" class="linkbtn" id="pdef">${t('Standard-PIN verwenden')}</button></div>
+    <div class="card pad"><div class="kv"><span>${t('Daten')}</span><b>${CFG.BACKEND === 'supabase' ? 'Supabase' : t('Nur in diesem Browser')}</b></div></div>
     <button class="btn dangerbtn block" id="logout">${ic('logout')} ${t('Abmelden')}</button></div>`;
   $('#seg-theme').addEventListener('click', e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
@@ -665,6 +685,12 @@ async function viewProfile() {
   $('#sel-lang').addEventListener('change', e => { setPref('lang', e.target.value); route(); });
   const inst = $('#inst');
   if (inst) inst.onclick = async () => { try { installPrompt.prompt(); await installPrompt.userChoice; } catch (err) { console.error(err); } installPrompt = null; viewProfile(); };
+  const setPin = async pin => {
+    try { await API.changeOwnPin(pin); toast(t('PIN geändert')); $('#np').value = ''; }
+    catch (err) { fail(err); }
+  };
+  $('#pf').addEventListener('submit', e => { e.preventDefault(); setPin($('#np').value); });
+  $('#pdef').onclick = () => setPin('');
   $('#logout').onclick = async () => { await API.logout(); location.hash = ''; route(); };
 }
 

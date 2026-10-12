@@ -36,7 +36,7 @@ Diese Datei nicht committen.
 Oberfläche im Stil der FBRO-App (Farben, Abmessungen, Karten- und Menüaufbau aus deren `styles.css`): Mobile-first, untere Icon-Leiste (Library, Admin nur für Admins, Profil),
 Aktionen pro Eintrag gebündelt unter dem «…»-Knopf, grosse Titel mit Barlow Condensed (lokal in `fonts/`).
 
-- Profil: Name und Nummer, Rollen, Sprache (Deutsch, English), Darstellung (Hell, Dunkel, Automatisch), App installieren, Abmelden.
+- Profil: Name und Nummer, Rollen, PIN ändern, Sprache (Deutsch, English), Darstellung (Hell, Dunkel, Automatisch), App installieren, Abmelden.
   Sprache und Darstellung werden pro Gerät im Browser gespeichert (`localStorage`).
 - Library: Karten mit Vorschau, Suche, «+» für neue Map (leer, Teeshop-Vorlage oder JSON-Import), «…» pro Karte: Öffnen, Duplizieren, Teilen, Löschen.
 - Designer: Werkzeugleiste (Auswählen, Baustein, Verbinden, Rückgängig, Wiederholen), «…» oben rechts: Version speichern, Export SVG und JSON. Bausteine setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
@@ -81,5 +81,5 @@ Personen anlegen, PIN zurücksetzen, Rollen ändern und löschen laufen über RP
 - Deutsch und Englisch. Texte laufen über `t()`, Übersetzungen stehen in `i18n.js` (Schlüssel = deutscher Text). Karteninhalte und die Teeshop-Vorlage bleiben deutsch.
 - Profil-Einstellungen gelten pro Gerät, nicht pro Konto.
 - Im lokalen Modus liegen PINs im Klartext im Browser. Mit Supabase übernimmt Auth das Hashing.
-- Personen können ihre PIN nicht selbst ändern, nur ein Admin kann sie zurücksetzen (wie bei FBRO).
+- Personen ändern ihre PIN im Profil selbst. Ein Admin kann sie zusätzlich zurücksetzen.
 - Die Standard-PIN (letzte 6 Ziffern der Nummer) ist leicht zu erraten. Für sensible Daten beim Anlegen eine eigene PIN setzen.

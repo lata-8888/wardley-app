@@ -37,8 +37,8 @@ Anmeldung: Mobilnummer und PIN, wie bei FBRO. Die App macht aus der Nummer eine 
   Nummern. Andere Länder gehen mit Ländervorwahl (`+49 170 1234567` oder `0049 170 1234567`).
   Zu kurze oder ungültige Nummern werden abgelehnt. Jede Nummer kann nur einmal registriert werden.
 - Die PIN hat 6 Ziffern. Standard sind die letzten 6 Ziffern der Mobilnummer. Ein Admin kann beim Anlegen eine
-  andere PIN setzen oder die PIN später zurücksetzen (leer lassen = Standard-PIN). Personen können ihre PIN
-  nicht selbst ändern.
+  andere PIN setzen oder die PIN später zurücksetzen (leer lassen = Standard-PIN). Personen ändern ihre PIN im Profil selbst
+  (Supabase: `auth.updateUser`, der Passwortwechsel muss in den Auth-Einstellungen ohne aktuelles Passwort erlaubt sein).
 - Die Mobilnummern sind in der Datenbank nur für Admins lesbar (Spaltenrechte und `admin_list_users()`).
   Normale Mitglieder sehen von anderen nur Name und Rolle.
 - Die Normalisierung steckt doppelt im Code: `normPhone()` in `app.js` und `normalize_phone()` in `schema.sql`.
@@ -103,7 +103,7 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 - Rechte: Leser kann nichts ändern, Bearbeiter kann nicht teilen oder löschen, fremde Maps sind unsichtbar.
 - Admin: Person mit Mobilnummer anlegen (PIN leer lassen ergibt die letzten 6 Ziffern), dieselbe Nummer in
   anderer Schreibweise nochmals anlegen (muss scheitern), Admin-Rolle ändern, deaktivieren (Login schlägt danach fehl),
-  PIN zurücksetzen (leer = Standard-PIN), löschen (Maps gehen an die löschende Person über).
+  PIN zurücksetzen (leer = Standard-PIN), löschen. Profil: eigene PIN ändern und auf Standard zurücksetzen, danach Login mit der neuen PIN (Maps gehen an die löschende Person über).
 
 ## 5. Fehlersuche
 
