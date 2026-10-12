@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.local.sql
+config.local.js
+.DS_Store

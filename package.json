@@ -1,0 +1,11 @@
+{
+  "name": "wardley-app",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Wardley Maps: Erstellen, Verwalten und Pflegen (PWA mit Supabase)",
+  "scripts": {
+    "check": "node scripts/check.js",
+    "build": "node scripts/build.js",
+    "serve": "python3 -m http.server 8080"
+  }
+}
