@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -630,7 +630,7 @@ const ICON = {
   redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>',
   select: '<path d="M4 10V8M4 5V4h1M8 4h2M13 4h2M18 4h2v2M20 8v1M4 14v-1"/><path d="M10 20l-3-4 1-1 2 1V9.5a1.3 1.3 0 0 1 2.6 0v3.5l4 .8c1 .2 1.6 1 1.6 2V17c0 1.5-1 2.7-2.4 3z"/>',
   link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
-  node: '<path d="M3 10h18v9H3zM6 10V6h4v4M14 10V6h4v4"/>',
+  node: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M7.5 12h9"/>',
   open: '<path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/>',
   share: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/>',
@@ -937,7 +937,7 @@ async function viewDesigner(id) {
     right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('mapinfo', 'info', t('Info'))}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
   view().innerHTML = `<div class="d-toolbar">
       ${edit ? `<div class="tools"><button class="tbtn tool active" data-tool="select">${ic('select')}<span>${t('Auswählen')}</span></button>
-      <button class="tbtn tool" data-tool="add">${ic('node')}<span>${t('Baustein')}</span></button>
+      <button class="tbtn tool" data-tool="add" aria-label="${t('Baustein')}" title="${t('Baustein')}">${ic('node')}<span>${t('Neu')}</span></button>
       <button class="tbtn tool" data-tool="link">${ic('link')}<span>${t('Verbinden')}</span></button></div>
       ${iconBtn('undo', 'undo', t('Rückgängig'))}${iconBtn('redo', 'redo', t('Wiederholen'))}` : ''}
       <span id="status">${t('Gespeichert')}</span></div>
