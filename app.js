@@ -74,8 +74,33 @@ function composePhone(cc, raw) {
 }
 function phoneField(idCc, idNum) {
   return `<div class="phonerow"><select id="${idCc}" class="phonecc" aria-label="${t('Land')}">${PHONE_CC.map(x => `<option value="${x.c}">${x.l}</option>`).join('')}<option value="">${t('Andere')}</option></select>
-    <input id="${idNum}" type="tel" inputmode="tel" autocomplete="${idNum === 'ln' ? 'username' : 'off'}" required maxlength="30" placeholder="79 123 45 67"></div>`;
+    <input id="${idNum}" type="tel" inputmode="tel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required maxlength="30" placeholder="79 123 45 67"></div>`;
 }
+/* Eingabe live formatieren: keine führende 0, CH als «79 623 23 45», DE als «176 12345678». + / 00 = international, unverändert. */
+function formatPhoneInput(cc, raw) {
+  raw = String(raw || '');
+  if (/^\s*(\+|00)/.test(raw)) return raw;
+  if (!cc) return raw;
+  let d = raw.replace(/\(0\)/g, '').replace(/\D/g, '');
+  if (cc === '41' && d.length >= 11 && d.indexOf('41') === 0) d = d.slice(2);
+  d = d.replace(/^0+/, '');
+  if (cc === '41') {
+    d = d.slice(0, 9);
+    return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
+  }
+  return d;
+}
+if (typeof document !== 'undefined') document.addEventListener('input', e => {
+  const el = e.target, row = el.closest && el.closest('.phonerow');
+  if (!row || el.tagName !== 'INPUT') return;
+  const f = formatPhoneInput(row.querySelector('select').value, el.value);
+  if (f !== el.value) el.value = f;
+});
+if (typeof document !== 'undefined') document.addEventListener('change', e => {
+  const row = e.target.closest && e.target.closest('.phonerow');
+  if (!row || e.target.tagName !== 'SELECT') return;
+  const inp = row.querySelector('input'); inp.value = formatPhoneInput(e.target.value, inp.value);
+});
 const defaultPin = phone => String(phone || '').replace(/\D/g, '').slice(-6);   // letzte 6 Ziffern
 const phoneToEmail = phone => {
   const n = normPhone(phone);
@@ -611,9 +636,9 @@ function renderLogin() {
         <text x="0" y="47" textLength="240" lengthAdjust="spacingAndGlyphs" class="l1">Wardley mAPP</text>
         <text x="0" y="98" textLength="240" lengthAdjust="spacingAndGlyphs" class="l2">inspired by Andrea</text></svg></h1><img class="logo-big" src="icons/logo.png" alt=""></div>
     <p class="sub">${t('Melde dich mit deiner Mobilnummer an.')}</p>
-    <form id="lf" autocomplete="off">
+    <form id="lf" autocomplete="off" novalidate>
       <label>${t('Mobilnummer')}${phoneField('lcc', 'ln')}</label>
-      <label>${t('PIN')}<input id="lp" class="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" pattern="[0-9]{6}" placeholder="······"></label>
+      <label>${t('PIN')}<input id="lp" class="pin" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6" placeholder="······"></label>
       <div class="error" id="le"></div>
       <button class="btn dark block">${t('Anmelden')}</button>
     </form>
@@ -621,7 +646,7 @@ function renderLogin() {
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
     const phone = composePhone($('#lcc').value, $('#ln').value);
-    const pin = $('#lp').value.trim() || defaultPin(normPhone(phone));
+    const pin = $('#lp').value.replace(/\D/g, '') || defaultPin(normPhone(phone));
     try { await API.login(phone, pin); route(); }
     catch (err) { console.error(err); $('#le').textContent = err.message; }
   });

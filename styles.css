@@ -52,7 +52,7 @@ label{display:block;font-weight:600;font-size:.95rem;margin:0 0 16px}
 label input,label select,label textarea{margin-top:6px;font-weight:400}
 label.chk{display:flex;align-items:center;gap:10px;font-weight:500}
 label.chk input{width:22px;height:22px;margin:0;accent-color:var(--crown)}
-input.pin{letter-spacing:.5em;text-align:center;font-family:var(--font-head);font-size:1.6rem;font-weight:700}
+input.pin{-webkit-text-security:disc;letter-spacing:.5em;text-align:center;font-family:var(--font-head);font-size:1.6rem;font-weight:700}
 .modal input,.modal select,.modal textarea,.d-panel input,.d-panel select,.d-panel textarea{font-size:1rem;padding:11px 12px}
 .phonerow{display:flex;gap:8px;margin-top:6px}
 .phonerow select{flex:0 0 auto;width:auto;max-width:42%}
