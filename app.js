@@ -48,6 +48,8 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
+const APP_VERSION = '1.4';
+
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
 // (+49 170 1234567, 0049 170 1234567). Ergebnis: +41791234567 oder null (ungültig, zu kurz).
@@ -649,13 +651,14 @@ function renderLogin() {
       <div class="error" id="le"></div>
       <button class="btn dark block">${t('Anmelden')}</button>
     </form>
+    <p style="text-align:center;margin-top:18px;font-size:.8rem;color:var(--muted)">v${APP_VERSION}</p>
   </div>`;
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
     const phone = composePhone($('#lcc').value, $('#ln').value);
     const pin = $('#lp').value.replace(/\D/g, '') || defaultPin(normPhone(phone));
     try { await API.login(phone, pin); route(); }
-    catch (err) { console.error(err); $('#le').textContent = err.message; }
+    catch (err) { console.error(err); $('#le').textContent = err.message + (normPhone(phone) ? ' (' + fmtPhone(phone) + ', PIN: ' + pin.length + ')' : ''); }
   });
 }
 function shell(u) {
