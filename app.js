@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.27';
+const APP_VERSION = '1.28';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -181,18 +181,33 @@ function autoLabels(nodes, links) {
   const boxes = {}; nodes.forEach(n => { boxes[n.id] = nodeBox(n); });
   const score = (n, pos) => {
     const g = labelGeom(n, pos), b = g.box; let p = { right: 0, left: 6, below: 12, above: 14 }[pos];
-    nodes.forEach(o => { if (o.id !== n.id && hit(b, boxes[o.id])) p += 1000; });
-    placed.forEach(pb => { if (hit(b, pb)) p += 1200; });
+    nodes.forEach(o => { if (o.id !== n.id && hit(b, boxes[o.id])) p += 3000; });
+    placed.forEach(pb => { if (hit(b, pb)) p += 3000; });
     if (b.x0 < 4) p += 3000;
     else if (b.x0 < G.X0 + 6) p += 400;
     if (b.x1 > G.W - 28) p += 3000;
-    if (b.y0 < G.Y0 - 6) p += 600;
-    if (b.y1 > G.Y1 - 4) p += 600;
+    if (b.y0 < G.Y0 - 6) p += 3000;
+    if (b.y1 > G.Y1 - 4) p += 3000;
     links.forEach(l => {
       const a = by[l.from], c = by[l.to]; if (!a || !c) return;
       if (segHitsBox(px(a.x), py(a.y), px(c.x), py(c.y), b)) p += 70;
     });
     if (typeof n.evo === 'number' && n.evo > n.x + 0.02 && segHitsBox(px(n.x) + 26, py(n.y), px(n.evo), py(n.y), b)) p += 500;
+    // Name mit möglichst grossem Winkelabstand zu den eigenen Verbindungen (und zum Entwicklungspfeil) setzen
+    const cx = (b.x0 + b.x1) / 2 - px(n.x), cy = (b.y0 + b.y1) / 2 - py(n.y), dirs = [];
+    links.forEach(l => {
+      const o = l.from === n.id ? by[l.to] : l.to === n.id ? by[l.from] : null;
+      if (o) dirs.push([px(o.x) - px(n.x), py(o.y) - py(n.y)]);
+    });
+    if (typeof n.evo === 'number' && n.evo > n.x + 0.02) dirs.push([1, 0]);
+    if (dirs.length) {
+      let min = 180;
+      dirs.forEach(([dx, dy]) => {
+        const m = Math.hypot(dx, dy) * Math.hypot(cx, cy);
+        if (m) min = Math.min(min, Math.acos(Math.max(-1, Math.min(1, (dx * cx + dy * cy) / m))) * 180 / Math.PI);
+      });
+      p += (180 - min) * 4;
+    }
     return p;
   };
   // feste Beschriftungen sind Hindernisse
@@ -1094,20 +1109,20 @@ async function viewDesigner(id) {
     panel.classList.toggle('empty', !n);
     if (!n) { panel.innerHTML = `<p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>`; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
-    const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
+    const linkHtml = `<div class="frow" style="align-items:flex-start"><span class="flab">Link</span><div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
       panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker') : n.cat === 'diff' ? t('Make (Differenzierung)') : n.cat === 'std' ? t('Buy (Standard)') : t('Element')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
     const comp = n.type === 'component';
-    const row = (icon, label, ctl) => `<div class="frow" title="${esc(label)}">${ic(icon)}${ctl}</div>`;
-    panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
-      ${row('ftype', t('Typ'), `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="component" class="${n.type === 'component' ? 'on' : ''}">${t('Element')}</button></div>`)}
-      ${row('fcat', t('Kategorie') + (comp ? '' : ' – ' + t('gilt nur für Elemente')), `<div class="seg2${comp ? '' : ' off'}" role="group" aria-label="${t('Kategorie')}"><button type="button" data-seg="cat" data-v="diff" class="${n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="cat" data-v="std" class="${n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`)}
-      ${row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
+    const row = (icon, label, ctl) => `<div class="frow"><span class="flab">${esc(label)}</span>${ctl}</div>`;
+    panel.innerHTML = `${row('fname', 'Name', `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
+      ${row('ftype', 'Type', `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="component" class="${n.type === 'component' ? 'on' : ''}">${t('Element')}</button></div>`)}
+      ${row('fcat', 'Sourcing', `<div class="seg2${comp ? '' : ' off'}" role="group" aria-label="${t('Kategorie')}"><button type="button" data-seg="cat" data-v="diff" class="${n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="cat" data-v="std" class="${n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`)}
+      ${row('fevo', 'Evolution', `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
-      ${row('fdesc', t('Beschreibung'), `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
+      ${row('fdesc', 'Comment', `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
       ${linkHtml}
       <button class="btn danger" style="margin-top:10px" data-act="del">${t('Baustein löschen')}</button>`;
   }
