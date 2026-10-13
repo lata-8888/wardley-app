@@ -62,6 +62,8 @@ window.WM_I18N = {
     'Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.': 'Add the app to your home screen to open it in full screen.',
     'Legende': 'Legend',
     'Info': 'Info',
+    'Beschriftungen automatisch anordnen': 'Arrange labels automatically',
+    'Beschriftungen automatisch angeordnet': 'Labels arranged automatically',
     'Designer': 'Designer',
     'Wähle in der Library eine Map aus. Sie öffnet sich dann im Designer, wo du sie bearbeiten kannst.': 'Pick a map in the Library. It opens in the Designer, where you can edit it.',
     'Neu': 'New',

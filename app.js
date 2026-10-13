@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.22';
+const APP_VERSION = '1.23';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -134,7 +134,57 @@ const nx = x => (x - G.X0) / (G.X1 - G.X0);
 const ny = y => (y - G.Y0) / (G.Y1 - G.Y0);
 const TYPES = ['component', 'anchor', 'note'];
 const CATS = ['none', 'std', 'diff'];   // Kategorie: keine (ohne Schatten), Standard (blau), Differenzierung (rot)
-const LABELS = ['right', 'left', 'below', 'above'];
+const LABELS = ['auto', 'right', 'left', 'below', 'above'];
+const LABEL_R = 18;   // Radius der Bausteine
+/* Beschriftungen automatisch platzieren: pro Baustein die Position (rechts/links/unten/oben) mit den wenigsten Überschneidungen */
+function labelGeom(n, pos) {
+  const x = px(n.x), y = py(n.y), w = Math.max(30, String(n.name).length * (n.type === 'anchor' ? 12.6 : 11.8)), r = LABEL_R;
+  let lx = x + r + 10, ly = y + 6, anc = 'start', x0 = lx;
+  if (pos === 'left') { lx = x - r - 10; anc = 'end'; x0 = lx - w; }
+  else if (pos === 'below') { lx = x; ly = y + r + 28; anc = 'middle'; x0 = lx - w / 2; }
+  else if (pos === 'above') { lx = x; ly = y - r - 10; anc = 'middle'; x0 = lx - w / 2; }
+  return { lx, ly, anc, box: { x0, x1: x0 + w, y0: ly - 20, y1: ly + 6 } };
+}
+function autoLabels(nodes, links) {
+  const by = {}; nodes.forEach(n => { by[n.id] = n; });
+  const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+  const nodeBox = n => {
+    const x = px(n.x), y = py(n.y);
+    if (n.type === 'note') { const w = Math.max(90, n.name.length * 11.5 + 28); return { x0: x - w / 2, x1: x + w / 2, y0: y - 18, y1: y + 18 }; }
+    return { x0: x - 24, x1: x + 24, y0: y - 24, y1: y + 24 };
+  };
+  const segHitsBox = (ax, ay, bx, by2, b) => {
+    for (let i = 0; i <= 16; i++) { const px_ = ax + (bx - ax) * i / 16, py_ = ay + (by2 - ay) * i / 16; if (px_ > b.x0 && px_ < b.x1 && py_ > b.y0 && py_ < b.y1) return true; }
+    return false;
+  };
+  const placed = [], out = {};
+  const boxes = {}; nodes.forEach(n => { boxes[n.id] = nodeBox(n); });
+  const score = (n, pos) => {
+    const g = labelGeom(n, pos), b = g.box; let p = { right: 0, left: 6, below: 12, above: 14 }[pos];
+    nodes.forEach(o => { if (o.id !== n.id && hit(b, boxes[o.id])) p += 1000; });
+    if (n.type === 'note') p += 0;
+    placed.forEach(pb => { if (hit(b, pb)) p += 1200; });
+    if (b.x0 < 4) p += 3000;
+    else if (b.x0 < G.X0 + 6) p += 400;
+    if (b.x1 > G.W - 4) p += 3000;
+    if (b.y0 < G.Y0 - 6) p += 600;
+    if (b.y1 > G.Y1 - 4) p += 600;
+    links.forEach(l => {
+      const a = by[l.from], c = by[l.to]; if (!a || !c) return;
+      if (segHitsBox(px(a.x), py(a.y), px(c.x), py(c.y), b)) p += 70;
+    });
+    if (typeof n.evo === 'number' && n.evo > n.x + 0.02 && segHitsBox(px(n.x) + 26, py(n.y), px(n.evo), py(n.y), b)) p += 500;
+    return p;
+  };
+  // feste Beschriftungen sind Hindernisse
+  nodes.forEach(n => { if (n.type !== 'note' && n.label !== 'auto') placed.push(labelGeom(n, n.label).box); });
+  nodes.filter(n => n.type !== 'note' && n.label === 'auto').forEach(n => {
+    let best = 'right', bp = Infinity;
+    ['right', 'left', 'below', 'above'].forEach(pos => { const p = score(n, pos); if (p < bp) { bp = p; best = pos; } });
+    out[n.id] = best; placed.push(labelGeom(n, best).box);
+  });
+  return out;
+}
 
 function mapSvg(data, o) {
   o = o || {};
@@ -179,6 +229,7 @@ function mapSvg(data, o) {
       s += `<line x1="${px(n.x) + 26}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
+  const autoPos = nodes.some(n => n.label === 'auto') ? autoLabels(nodes, links) : {};
   nodes.forEach(n => {
     const x = px(n.x), y = py(n.y);
     s += `<g data-node="${esc(n.id)}" style="cursor:pointer">`;
@@ -189,7 +240,7 @@ function mapSvg(data, o) {
     } else {
       const anchor = n.type === 'anchor';
       const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
-      const r = 18;
+      const r = LABEL_R;
       s += `<circle cx="${x}" cy="${y}" r="28" fill="transparent"/>`;
       if (anchor) {
         s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#1d1d1b"/>`;
@@ -199,10 +250,7 @@ function mapSvg(data, o) {
         s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat || '#8d8b84'}" fill-opacity="${cat ? .2 : .16}"/>`;
         s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
       }
-      let lx = x + r + 10, ly = y + 6, anc = 'start';
-      if (n.label === 'left') { lx = x - r - 10; anc = 'end'; }
-      else if (n.label === 'below') { lx = x; ly = y + r + 28; anc = 'middle'; }
-      else if (n.label === 'above') { lx = x; ly = y - r - 10; anc = 'middle'; }
+      const g = labelGeom(n, n.label === 'auto' ? (autoPos[n.id] || 'right') : n.label), lx = g.lx, ly = g.ly, anc = g.anc;
       s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${esc(n.name)}</text>`;
     }
     s += '</g>';
@@ -226,7 +274,7 @@ function sanitize(d) {
       y: clamp(Number(n.y) || 0, 0, 1),
       type: TYPES.includes(n.type) ? n.type : 'component',
       cat: CATS.includes(n.cat) ? n.cat : (n.build ? 'diff' : 'std'),
-      label: LABELS.includes(n.label) ? n.label : 'right',
+      label: LABELS.includes(n.label) ? n.label : 'auto',
       desc: String(n.desc == null ? '' : n.desc).slice(0, 500)
     };
     node.build = node.cat === 'diff';
@@ -971,7 +1019,7 @@ async function viewDesigner(id) {
       <button class="tbtn tool" data-tool="link">${ic('link')}<span>${t('Verbinden')}</span></button></div>
       ${iconBtn('undo', 'undo', t('Rückgängig'))}${iconBtn('redo', 'redo', t('Wiederholen'))}` : ''}
       <span id="status">${t('Gespeichert')}</span></div>
-    <div class="d-main nopanel" id="dmain"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel card" id="panel" hidden></aside></div>`;
+    <div class="d-main nopanel" id="dmain"><div class="d-canvas ${edit ? 'edit' : ''}" id="canvas"></div><aside class="d-panel card" id="panel"></aside></div>`;
   const host = $('#canvas'), panel = $('#panel'), status = $('#status');
 
   const byId = k => data.nodes.find(n => n.id === k);
@@ -1029,8 +1077,8 @@ async function viewDesigner(id) {
     const n = sel && byId(sel);
     panelKey = n ? n.id : '';
     $('#dmain').classList.toggle('nopanel', !n);
-    panel.hidden = !n;
-    if (!n) { panel.innerHTML = ''; return; }
+    panel.classList.toggle('empty', !n);
+    if (!n) { panel.innerHTML = `<p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>`; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
@@ -1043,7 +1091,7 @@ async function viewDesigner(id) {
     panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
       ${row('ftype', t('Typ'), `<select data-f="type" aria-label="${t('Typ')}">${opt(TYPES, n.type, v => ({ component: t('Baustein'), anchor: t('Anker (Nutzer)'), note: t('Notiz') }[v]))}</select>`)}
       ${comp ? row('fcat', t('Kategorie'), `<select data-f="cat" aria-label="${t('Kategorie')}">${opt(CATS, n.cat, v => v === 'none' ? t('Keine') : v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select>`) : ''}
-      ${row('flabel', t('Beschriftung'), `<select data-f="label" aria-label="${t('Beschriftung')}">${opt(LABELS, n.label, v => ({ right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select>`)}
+      ${row('flabel', t('Beschriftung'), `<select data-f="label" aria-label="${t('Beschriftung')}">${opt(LABELS, n.label, v => ({ auto: t('Automatisch'), right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select>`)}
       ${n.type !== 'note' ? row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`) : ''}
       ${row('fdesc', t('Beschreibung'), `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
@@ -1066,7 +1114,7 @@ async function viewDesigner(id) {
     if (!edit || !f || !n) return;
     if (f === 'type') { n.type = TYPES.includes(e.target.value) ? e.target.value : 'component'; renderPanel(); }
     else if (f === 'cat') { n.cat = CATS.includes(e.target.value) ? e.target.value : 'none'; n.build = n.cat === 'diff'; }
-    else if (f === 'label') n.label = LABELS.includes(e.target.value) ? e.target.value : 'right';
+    else if (f === 'label') n.label = LABELS.includes(e.target.value) ? e.target.value : 'auto';
     else if (f === 'evoOn') { if (e.target.checked) n.evo = clamp(n.x + 0.15, 0, 1); else delete n.evo; renderPanel(); }
     else return;
     draw(); changed();
@@ -1108,7 +1156,7 @@ async function viewDesigner(id) {
     if (!edit) { select(g ? g.dataset.node : null); return; }
     if (tool === 'add' && !g) {
       pushUndo();
-      const n = { id: uid(), name: t('Neuer Baustein'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'right', desc: '' };
+      const n = { id: uid(), name: t('Neuer Baustein'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'auto', desc: '' };
       data.nodes.push(n); setTool('select'); select(n.id); changed();
       const f = $('#f-name'); if (f) { f.focus(); f.select(); }
       return;
@@ -1126,9 +1174,10 @@ async function viewDesigner(id) {
       return;
     }
     if (g) {
-      const k = g.dataset.node, n = byId(k);
+      const k = g.dataset.node;
       if (sel !== k) select(k);
-      drag = { id: k, dx: pt.x - px(n.x), dy: pt.y - py(n.y), moved: false };
+      // Verschieben erst nach einer echten Ziehbewegung (>6 px); Versatz erst dann messen, weil sich das Layout beim Auswählen ändern kann
+      drag = { id: k, sx: e.clientX, sy: e.clientY, active: false, moved: false };
       try { host.setPointerCapture(e.pointerId); } catch (err) { /* ignorieren */ }
     } else select(null);
   });
@@ -1143,7 +1192,13 @@ async function viewDesigner(id) {
       return;
     }
     if (!drag) return;
-    const pt = toSvg(e), n = byId(drag.id); if (!n) return;
+    const n = byId(drag.id); if (!n) return;
+    if (!drag.active) {
+      if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) < 6) return;
+      const p0 = toSvg({ clientX: drag.sx, clientY: drag.sy });
+      drag.active = true; drag.dx = p0.x - px(n.x); drag.dy = p0.y - py(n.y);
+    }
+    const pt = toSvg(e);
     if (!drag.moved) { pushUndo(); drag.moved = true; }
     n.x = clamp(nx(pt.x - drag.dx), 0, 1);
     n.y = clamp(ny(pt.y - drag.dy), 0, 1);
@@ -1220,7 +1275,8 @@ async function viewDesigner(id) {
       };
     };
   }
-  $('#more').onclick = () => sheet(title, (edit ? [{ icon: 'save', id: 'ver', label: t('Version speichern'), run: saveVersion }] : []).concat([
+  const autoAll = () => { pushUndo(); data.nodes.forEach(n => { if (n.type !== 'note') n.label = 'auto'; }); draw(); renderPanel(); changed(); toast(t('Beschriftungen automatisch angeordnet')); };
+  $('#more').onclick = () => sheet(title, (edit ? [{ icon: 'flabel', id: 'aut', label: t('Beschriftungen automatisch anordnen'), run: autoAll }, { icon: 'save', id: 'ver', label: t('Version speichern'), run: saveVersion }] : []).concat([
     { icon: 'download', id: 'exs', label: t('Export SVG'), run: () => download(fileSafe(title) + '.svg', mapSvg(data, { id: 'x' }), 'image/svg+xml') },
     { icon: 'download', id: 'exj', label: t('Export JSON'), run: () => download(fileSafe(title) + '.json', JSON.stringify({ title, data }, null, 2), 'application/json') }]));
 
