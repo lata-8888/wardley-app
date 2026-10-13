@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.19';
+const APP_VERSION = '1.20';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -133,6 +133,7 @@ const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
 const ny = y => (y - G.Y0) / (G.Y1 - G.Y0);
 const TYPES = ['component', 'anchor', 'note'];
+const CATS = ['none', 'std', 'diff'];   // Kategorie: keine (ohne Schatten), Standard (blau), Differenzierung (rot)
 const LABELS = ['right', 'left', 'below', 'above'];
 
 function mapSvg(data, o) {
@@ -144,7 +145,7 @@ function mapSvg(data, o) {
   nodes.forEach(n => { by[n.id] = n; });
   const BLUE = '#007BC3', CAT_STD = '#1f7fd1', CAT_DIFF = '#e0402a', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,-apple-system,Segoe UI,sans-serif">`;
-  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter></defs>`;
+  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8"/></filter></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
   for (let k = 1; k < 4; k++) {
@@ -165,7 +166,7 @@ function mapSvg(data, o) {
   s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
   // Legende der zwei Kategorien (roter / blauer Schatten)
   [[CAT_DIFF, t('Selbst bauen (Differenzierung)'), G.X0], [CAT_STD, t('Standard, einkaufen'), G.X0 + 340]].forEach(([c, lab, lx]) => {
-    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="2"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
+    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
     s += `<text x="${lx + 32}" y="${G.Y1 + 106}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
   });
   // Verbindungen: kräftig in Blau
@@ -187,15 +188,15 @@ function mapSvg(data, o) {
       s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${esc(n.name)}</text>`;
     } else {
       const anchor = n.type === 'anchor';
-      const cat = n.build ? CAT_DIFF : CAT_STD;
+      const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
       const r = anchor ? 15 : 24;
       s += `<circle cx="${x}" cy="${y}" r="30" fill="transparent"/>`;
       if (anchor) {
         s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#E1F5EE" stroke="#0F6E56" stroke-width="4"/>`;
       } else {
-        // Kategorie als farbiger Schatten: rot = selbst bauen, blau = einkaufen
-        s += `<circle cx="${x}" cy="${y}" r="${r + 4}" fill="${cat}" opacity=".95" filter="url(#${p}-glow)"/>`;
-        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat}" fill-opacity=".3" stroke="${cat}" stroke-width="3"/>`;
+        // Kategorie als dezenter farbiger Schatten ohne Rand: rot = selbst bauen, blau = einkaufen, keine = grau ohne Schatten
+        if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 3}" fill="${cat}" opacity=".55" filter="url(#${p}-glow)"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat || '#8d8b84'}" fill-opacity="${cat ? .2 : .16}"/>`;
         s += `<circle cx="${x}" cy="${y}" r="8" fill="#fff" stroke="${INK}" stroke-width="3.5"/>`;
       }
       let lx = x + r + 10, ly = y + 6, anc = 'start';
@@ -224,10 +225,11 @@ function sanitize(d) {
       x: clamp(Number(n.x) || 0, 0, 1),
       y: clamp(Number(n.y) || 0, 0, 1),
       type: TYPES.includes(n.type) ? n.type : 'component',
-      build: !!n.build,
+      cat: CATS.includes(n.cat) ? n.cat : (n.build ? 'diff' : 'std'),
       label: LABELS.includes(n.label) ? n.label : 'right',
       desc: String(n.desc == null ? '' : n.desc).slice(0, 500)
     };
+    node.build = node.cat === 'diff';
     if (typeof n.evo === 'number' && isFinite(n.evo)) node.evo = clamp(n.evo, 0, 1);
     ids.add(node.id);
     out.nodes.push(node);
@@ -246,7 +248,7 @@ function sanitize(d) {
 function teaTemplate() {
   const id = {};
   ['kunde', 'shop', 'empf', 'zahl', 'sort', 'vers', 'host', 'strom', 'ki'].forEach(k => { id[k] = uid(); });
-  const N = (k, name, x, y, o) => Object.assign({ id: id[k], name, x, y, type: 'component', build: false, label: 'right', desc: '' }, o || {});
+  const N = (k, name, x, y, o) => Object.assign({ id: id[k], name, x, y, type: 'component', build: false, cat: o && o.build ? 'diff' : 'std', label: 'right', desc: '' }, o || {});
   const L = (a, b) => ({ from: id[a], to: id[b] });
   return {
     nodes: [
@@ -1032,7 +1034,7 @@ async function viewDesigner(id) {
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
-      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker (Nutzer)') : n.type === 'note' ? t('Notiz') : n.build ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen')}</p>
+      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker (Nutzer)') : n.type === 'note' ? t('Notiz') : n.cat === 'diff' ? t('Selbst bauen (Differenzierung)') : n.cat === 'std' ? t('Standard, einkaufen') : t('Keine')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
@@ -1040,7 +1042,7 @@ async function viewDesigner(id) {
     const row = (icon, label, ctl) => `<div class="frow" title="${esc(label)}">${ic(icon)}${ctl}</div>`;
     panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
       ${row('ftype', t('Typ'), `<select data-f="type" aria-label="${t('Typ')}">${opt(TYPES, n.type, v => ({ component: t('Baustein'), anchor: t('Anker (Nutzer)'), note: t('Notiz') }[v]))}</select>`)}
-      ${comp ? row('fcat', t('Kategorie'), `<select data-f="build" aria-label="${t('Kategorie')}">${opt(['std', 'diff'], n.build ? 'diff' : 'std', v => v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select>`) : ''}
+      ${comp ? row('fcat', t('Kategorie'), `<select data-f="cat" aria-label="${t('Kategorie')}">${opt(CATS, n.cat, v => v === 'none' ? t('Keine') : v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select>`) : ''}
       ${row('flabel', t('Beschriftung'), `<select data-f="label" aria-label="${t('Beschriftung')}">${opt(LABELS, n.label, v => ({ right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select>`)}
       ${n.type !== 'note' ? row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`) : ''}
@@ -1063,7 +1065,7 @@ async function viewDesigner(id) {
     const f = e.target.dataset.f, n = sel && byId(sel);
     if (!edit || !f || !n) return;
     if (f === 'type') { n.type = TYPES.includes(e.target.value) ? e.target.value : 'component'; renderPanel(); }
-    else if (f === 'build') n.build = e.target.value === 'diff';
+    else if (f === 'cat') { n.cat = CATS.includes(e.target.value) ? e.target.value : 'none'; n.build = n.cat === 'diff'; }
     else if (f === 'label') n.label = LABELS.includes(e.target.value) ? e.target.value : 'right';
     else if (f === 'evoOn') { if (e.target.checked) n.evo = clamp(n.x + 0.15, 0, 1); else delete n.evo; renderPanel(); }
     else return;
@@ -1106,7 +1108,7 @@ async function viewDesigner(id) {
     if (!edit) { select(g ? g.dataset.node : null); return; }
     if (tool === 'add' && !g) {
       pushUndo();
-      const n = { id: uid(), name: t('Neuer Baustein'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, label: 'right', desc: '' };
+      const n = { id: uid(), name: t('Neuer Baustein'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'right', desc: '' };
       data.nodes.push(n); setTool('select'); select(n.id); changed();
       const f = $('#f-name'); if (f) { f.focus(); f.select(); }
       return;
