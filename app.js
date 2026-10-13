@@ -277,7 +277,7 @@ function mapSvg(data, o) {
       s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
     }
     const g = labelGeom(n, n.label === 'auto' ? (autoPos[n.id] || 'right') : n.label), lx = g.lx, ly = g.ly, anc = g.anc;
-    s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${g.lines.map((l, i) => `<tspan x="${lx}" dy="${i ? LINE_H : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+    s += `<text class="nlabel" data-lbl="${esc(n.id)}" x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${g.lines.map((l, i) => `<tspan x="${lx}" dy="${i ? LINE_H : 0}">${esc(l)}</tspan>`).join('')}</text>`;
   
     s += '</g>';
     if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
@@ -1121,6 +1121,30 @@ async function viewDesigner(id) {
   };
   let pan = null, lastTap = null;
 
+  /* Name direkt auf der Map bearbeiten: Antippen der Beschriftung öffnet ein Eingabefeld an ihrer Stelle */
+  let editing = null;
+  function closeEditor(commit) {
+    if (!editing) return;
+    const { input, k, old } = editing; editing = null;
+    const v = input.value.trim().slice(0, 80), n = byId(k);
+    input.remove();
+    if (commit && n && v && v !== old) { pushUndo(); n.name = v; draw(); renderPanel(); changed(); }
+  }
+  function openEditor(k, selectAll) {
+    const n = byId(k); if (!edit || !n) return;
+    closeEditor(true);
+    const lab = host.querySelector(`[data-lbl="${k}"]`); if (!lab) return;
+    const r = lab.getBoundingClientRect(), input = document.createElement('input');
+    input.className = 'inline-name'; input.value = n.name; input.maxLength = 80; input.setAttribute('aria-label', t('Name'));
+    const w = Math.max(r.width + 40, 170);
+    input.style.cssText = `left:${Math.max(4, Math.min(r.left - 8, innerWidth - w - 4))}px;top:${r.top - 8}px;width:${w}px`;
+    document.body.appendChild(input);
+    editing = { input, k, old: n.name };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); closeEditor(true); } else if (e.key === 'Escape') { e.preventDefault(); closeEditor(false); } });
+    input.addEventListener('blur', () => closeEditor(true));
+    input.focus(); if (selectAll) input.select();
+  }
+
   async function flush() {
     clearTimeout(saveT);
     if (!dirty) return;
@@ -1162,7 +1186,7 @@ async function viewDesigner(id) {
     }
     const comp = n.type === 'component';
     const row = (icon, label, ctl) => `<div class="frow${icon === 'fdesc' ? ' ftop' : ''}"><span class="flab">${esc(label)}</span>${ctl}</div>`;
-    panel.innerHTML = `${row('fname', 'Name', `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
+    panel.innerHTML = `
       ${row('ftype', 'Type', `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="diff" class="${comp && n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on anchor' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="std" class="${comp && n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button><button type="button" data-seg="type" data-v="none" class="${comp && n.cat === 'none' ? 'on empty' : ''}">${t('Leer')}</button></div>`)}
       ${row('fevo', 'Trend', `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
@@ -1235,7 +1259,7 @@ async function viewDesigner(id) {
       pushUndo();
       const n = { id: uid(), name: t('Neues Element'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'auto', desc: '' };
       data.nodes.push(n); setTool('select'); select(n.id); changed();
-      const f = $('#f-name'); if (f) { f.focus(); f.select(); }
+      setTimeout(() => openEditor(n.id, true), 0);
       return;
     }
     if (tool === 'link') {
@@ -1254,7 +1278,7 @@ async function viewDesigner(id) {
       const k = g.dataset.node;
       if (sel !== k) select(k);
       // Verschieben erst nach einer echten Ziehbewegung (>6 px); Versatz erst dann messen, weil sich das Layout beim Auswählen ändern kann
-      drag = { id: k, sx: e.clientX, sy: e.clientY, active: false, moved: false };
+      drag = { id: k, sx: e.clientX, sy: e.clientY, active: false, moved: false, onLabel: !!(e.target.closest && e.target.closest('.nlabel')) };
       try { host.setPointerCapture(e.pointerId); } catch (err) { /* ignorieren */ }
     } else select(null);
   });
@@ -1282,11 +1306,13 @@ async function viewDesigner(id) {
     draw();
   });
   let justDragged = false;
-  const endDrag = () => { justDragged = !!(drag && drag.moved); if (drag && drag.moved) changed(); drag = null; };
+  let labelTap = null;
+  const endDrag = () => { justDragged = !!(drag && drag.moved); labelTap = drag && !drag.moved && drag.onLabel ? drag.id : null; if (drag && drag.moved) changed(); drag = null; };
   host.addEventListener('pointerup', endDrag);
   host.addEventListener('pointercancel', endDrag);
   host.addEventListener('pointerup', e => {
     const wasPan = pan && pan.moved; pan = null;
+    if (labelTap) { const k = labelTap; labelTap = null; lastTap = null; setTimeout(() => openEditor(k, true), 0); return; }
     if (wasPan || (edit && tool !== 'select') || justDragged) { lastTap = null; return; }
     const now = Date.now();
     if (lastTap && now - lastTap.t < 380 && Math.abs(e.clientX - lastTap.x) + Math.abs(e.clientY - lastTap.y) < 40) { lastTap = null; zoomAt(toSvg(e)); }

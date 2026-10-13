@@ -241,3 +241,6 @@ body.wide .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .frow.links>.flab{padding-top:13px}
 .frow>.flab{flex:0 0 84px;font-weight:600;color:var(--muted);font-size:.9rem}
 .seg2.off{opacity:.4}
+
+.inline-name{position:fixed;z-index:60;padding:6px 10px;border:2px solid #185FA5;border-radius:8px;background:#fff;color:#1d1d1b;font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18);margin:0}
+.nlabel{cursor:text}
