@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.26';
+const APP_VERSION = '1.27';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -234,7 +234,7 @@ function mapSvg(data, o) {
   });
   s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
   // Legende der zwei Kategorien (roter / blauer Schatten)
-  [[CAT_DIFF, t('Make (selbst bauen)'), G.X0], [CAT_STD, t('Buy (einkaufen)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
+  [[CAT_DIFF, t('Make (Differenzierung)'), G.X0], [CAT_STD, t('Buy (Standard)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
     s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
     s += `<text x="${lx + 32}" y="${G.Y1 + 106}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
   });
@@ -1096,7 +1096,7 @@ async function viewDesigner(id) {
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
-      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker') : n.cat === 'diff' ? t('Make (selbst bauen)') : n.cat === 'std' ? t('Buy (einkaufen)') : t('Element')}</p>
+      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker') : n.cat === 'diff' ? t('Make (Differenzierung)') : n.cat === 'std' ? t('Buy (Standard)') : t('Element')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
@@ -1250,8 +1250,8 @@ async function viewDesigner(id) {
     const md = modal(`<h2>${t('Info')}</h2>
       <h3>${t('Legende')}</h3>
       <div class="legend"><span class="dot anchor"></span>${t('Anker (Nutzer)')}</div>
-      <div class="legend"><span class="dot diff"></span>${t('Make (selbst bauen)')}</div>
-      <div class="legend"><span class="dot std"></span>${t('Buy (einkaufen)')}</div>
+      <div class="legend"><span class="dot diff"></span>${t('Make (Differenzierung)')}</div>
+      <div class="legend"><span class="dot std"></span>${t('Buy (Standard)')}</div>
       <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
       <p class="meta">${t('Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.')}</p>
       <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>
