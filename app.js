@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.24';
+const APP_VERSION = '1.25';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -132,7 +132,7 @@ const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
 const ny = y => (y - G.Y0) / (G.Y1 - G.Y0);
-const TYPES = ['component', 'anchor', 'note'];
+const TYPES = ['component', 'anchor'];   // Element oder Anker (Notizen gibt es nicht mehr)
 const CATS = ['none', 'std', 'diff'];   // Kategorie: keine (ohne Schatten), Standard (blau), Differenzierung (rot)
 const LABELS = ['auto', 'right', 'left', 'below', 'above'];
 const LABEL_R = 18;   // Radius der Bausteine
@@ -166,16 +166,11 @@ function labelGeom(n, pos) {
   else if (pos === 'above') { lx = x; ly = y - r - 10 - (k - 1) * LINE_H; anc = 'middle'; x0 = lx - w / 2; }
   return { lx, ly, anc, lines, box: { x0, x1: x0 + w, y0: ly - 20, y1: ly + 6 + (k - 1) * LINE_H } };
 }
-const noteGeom = n => {
-  const lines = wrapText(n.name, NOTE_MAX), w = Math.max(90, Math.max(...lines.map(l => l.length)) * 11.5 + 28), h = 36 + (lines.length - 1) * 25;
-  return { lines, w, h };
-};
 function autoLabels(nodes, links) {
   const by = {}; nodes.forEach(n => { by[n.id] = n; });
   const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
   const nodeBox = n => {
     const x = px(n.x), y = py(n.y);
-    if (n.type === 'note') { const g = noteGeom(n); return { x0: x - g.w / 2, x1: x + g.w / 2, y0: y - 18, y1: y - 18 + g.h }; }
     return { x0: x - 24, x1: x + 24, y0: y - 24, y1: y + 24 };
   };
   const segHitsBox = (ax, ay, bx, by2, b) => {
@@ -187,11 +182,10 @@ function autoLabels(nodes, links) {
   const score = (n, pos) => {
     const g = labelGeom(n, pos), b = g.box; let p = { right: 0, left: 6, below: 12, above: 14 }[pos];
     nodes.forEach(o => { if (o.id !== n.id && hit(b, boxes[o.id])) p += 1000; });
-    if (n.type === 'note') p += 0;
     placed.forEach(pb => { if (hit(b, pb)) p += 1200; });
     if (b.x0 < 4) p += 3000;
     else if (b.x0 < G.X0 + 6) p += 400;
-    if (b.x1 > G.W - 4) p += 3000;
+    if (b.x1 > G.W - 28) p += 3000;
     if (b.y0 < G.Y0 - 6) p += 600;
     if (b.y1 > G.Y1 - 4) p += 600;
     links.forEach(l => {
@@ -202,8 +196,8 @@ function autoLabels(nodes, links) {
     return p;
   };
   // feste Beschriftungen sind Hindernisse
-  nodes.forEach(n => { if (n.type !== 'note' && n.label !== 'auto') placed.push(labelGeom(n, n.label).box); });
-  nodes.filter(n => n.type !== 'note' && n.label === 'auto').forEach(n => {
+  nodes.forEach(n => { if (n.label !== 'auto') placed.push(labelGeom(n, n.label).box); });
+  nodes.filter(n => n.label === 'auto').forEach(n => {
     let best = 'right', bp = Infinity;
     ['right', 'left', 'below', 'above'].forEach(pos => { const p = score(n, pos); if (p < bp) { bp = p; best = pos; } });
     out[n.id] = best; placed.push(labelGeom(n, best).box);
@@ -240,7 +234,7 @@ function mapSvg(data, o) {
   });
   s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
   // Legende der zwei Kategorien (roter / blauer Schatten)
-  [[CAT_DIFF, t('Selbst bauen (Differenzierung)'), G.X0], [CAT_STD, t('Standard, einkaufen'), G.X0 + 340]].forEach(([c, lab, lx]) => {
+  [[CAT_DIFF, t('Make (selbst bauen)'), G.X0], [CAT_STD, t('Buy (einkaufen)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
     s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
     s += `<text x="${lx + 32}" y="${G.Y1 + 106}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
   });
@@ -250,7 +244,7 @@ function mapSvg(data, o) {
     if (a && b) s += `<line x1="${px(a.x)}" y1="${py(a.y)}" x2="${px(b.x)}" y2="${py(b.y)}" stroke="${BLUE}" stroke-width="4" stroke-linecap="round"/>`;
   });
   nodes.forEach(n => {
-    if (n.type !== 'note' && typeof n.evo === 'number' && n.evo > n.x + 0.02) {
+    if (typeof n.evo === 'number' && n.evo > n.x + 0.02) {
       s += `<line x1="${px(n.x) + 26}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
@@ -258,26 +252,21 @@ function mapSvg(data, o) {
   nodes.forEach(n => {
     const x = px(n.x), y = py(n.y);
     s += `<g data-node="${esc(n.id)}" style="cursor:pointer">`;
-    if (n.type === 'note') {
-      const g = noteGeom(n), w = g.w;
-      s += `<rect x="${x - w / 2}" y="${y - 18}" width="${w}" height="${g.h}" rx="5" fill="#FAEEDA" stroke="#854F0B" stroke-width="2"/>`;
-      s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${g.lines.map((l, i) => `<tspan x="${x}" dy="${i ? 25 : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+    const anchor = n.type === 'anchor';
+    const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
+    const r = LABEL_R;
+    s += `<circle cx="${x}" cy="${y}" r="28" fill="transparent"/>`;
+    if (anchor) {
+      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#1d1d1b"/>`;
     } else {
-      const anchor = n.type === 'anchor';
-      const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
-      const r = LABEL_R;
-      s += `<circle cx="${x}" cy="${y}" r="28" fill="transparent"/>`;
-      if (anchor) {
-        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#1d1d1b"/>`;
-      } else {
-        // Kategorie als dezenter farbiger Schatten ohne Rand: rot = selbst bauen, blau = einkaufen, keine = grau ohne Schatten
-        if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 2}" fill="${cat}" opacity=".5" filter="url(#${p}-glow)"/>`;
-        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat || '#8d8b84'}" fill-opacity="${cat ? .2 : .16}"/>`;
-        s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
-      }
-      const g = labelGeom(n, n.label === 'auto' ? (autoPos[n.id] || 'right') : n.label), lx = g.lx, ly = g.ly, anc = g.anc;
-      s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${g.lines.map((l, i) => `<tspan x="${lx}" dy="${i ? LINE_H : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+      // Kategorie als dezenter farbiger Schatten ohne Rand: rot = selbst bauen, blau = einkaufen, keine = grau ohne Schatten
+      if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 2}" fill="${cat}" opacity=".5" filter="url(#${p}-glow)"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat || '#8d8b84'}" fill-opacity="${cat ? .2 : .16}"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
     }
+    const g = labelGeom(n, n.label === 'auto' ? (autoPos[n.id] || 'right') : n.label), lx = g.lx, ly = g.ly, anc = g.anc;
+    s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${g.lines.map((l, i) => `<tspan x="${lx}" dy="${i ? LINE_H : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+  
     s += '</g>';
     if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
     if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
@@ -298,8 +287,8 @@ function sanitize(d) {
       x: clamp(Number(n.x) || 0, 0, 1),
       y: clamp(Number(n.y) || 0, 0, 1),
       type: TYPES.includes(n.type) ? n.type : 'component',
-      cat: CATS.includes(n.cat) ? n.cat : (n.build ? 'diff' : 'std'),
-      label: LABELS.includes(n.label) ? n.label : 'auto',
+      cat: CATS.includes(n.cat) ? n.cat : (n.build ? 'diff' : n.type === 'note' ? 'none' : 'std'),
+      label: 'auto',
       desc: String(n.desc == null ? '' : n.desc).slice(0, 500)
     };
     node.build = node.cat === 'diff';
@@ -1107,18 +1096,17 @@ async function viewDesigner(id) {
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<div class="frow" style="align-items:flex-start" title="${t('Verbindungen')}">${ic('link')}<div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
-      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker (Nutzer)') : n.type === 'note' ? t('Notiz') : n.cat === 'diff' ? t('Selbst bauen (Differenzierung)') : n.cat === 'std' ? t('Standard, einkaufen') : t('Keine')}</p>
+      panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker') : n.cat === 'diff' ? t('Make (selbst bauen)') : n.cat === 'std' ? t('Buy (einkaufen)') : t('Element')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
     const comp = n.type === 'component';
     const row = (icon, label, ctl) => `<div class="frow" title="${esc(label)}">${ic(icon)}${ctl}</div>`;
     panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
-      ${row('ftype', t('Typ'), `<select data-f="type" aria-label="${t('Typ')}">${opt(TYPES, n.type, v => ({ component: t('Baustein'), anchor: t('Anker (Nutzer)'), note: t('Notiz') }[v]))}</select>`)}
-      ${comp ? row('fcat', t('Kategorie'), `<select data-f="cat" aria-label="${t('Kategorie')}">${opt(CATS, n.cat, v => v === 'none' ? t('Keine') : v === 'diff' ? t('Selbst bauen (Differenzierung)') : t('Standard, einkaufen'))}</select>`) : ''}
-      ${row('flabel', t('Beschriftung'), `<select data-f="label" aria-label="${t('Beschriftung')}">${opt(LABELS, n.label, v => ({ auto: t('Automatisch'), right: t('rechts'), left: t('links'), below: t('unten'), above: t('oben') }[v]))}</select>`)}
-      ${n.type !== 'note' ? row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
-        <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`) : ''}
+      ${row('ftype', t('Typ'), `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="component" class="${n.type === 'component' ? 'on' : ''}">${t('Element')}</button></div>`)}
+      ${comp ? row('fcat', t('Kategorie'), `<div class="seg2" role="group" aria-label="${t('Kategorie')}"><button type="button" data-seg="cat" data-v="diff" class="${n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="cat" data-v="std" class="${n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`) : ''}
+      ${row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
+        <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
       ${row('fdesc', t('Beschreibung'), `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
       ${linkHtml}
       <button class="btn danger" style="margin-top:10px" data-act="del">${t('Baustein löschen')}</button>`;
@@ -1137,16 +1125,20 @@ async function viewDesigner(id) {
   panel.addEventListener('change', e => {
     const f = e.target.dataset.f, n = sel && byId(sel);
     if (!edit || !f || !n) return;
-    if (f === 'type') { n.type = TYPES.includes(e.target.value) ? e.target.value : 'component'; renderPanel(); }
-    else if (f === 'cat') { n.cat = CATS.includes(e.target.value) ? e.target.value : 'none'; n.build = n.cat === 'diff'; }
-    else if (f === 'label') n.label = LABELS.includes(e.target.value) ? e.target.value : 'auto';
-    else if (f === 'evoOn') { if (e.target.checked) n.evo = clamp(n.x + 0.15, 0, 1); else delete n.evo; renderPanel(); }
+    if (f === 'evoOn') { if (e.target.checked) n.evo = clamp(n.x + 0.15, 0, 1); else delete n.evo; renderPanel(); }
     else return;
     draw(); changed();
   });
   panel.addEventListener('click', async e => {
     if (!edit) return;
     const un = e.target.dataset.unlink, rs = e.target.dataset.restore;
+    const sg = e.target.closest('[data-seg]'), sn = sel && byId(sel);
+    if (sg && sn) {
+      pushUndo();
+      if (sg.dataset.seg === 'type') sn.type = sg.dataset.v === 'anchor' ? 'anchor' : 'component';
+      else { sn.cat = sn.cat === sg.dataset.v ? 'none' : sg.dataset.v; sn.build = sn.cat === 'diff'; }   // erneutes Antippen = keine Kategorie
+      draw(); renderPanel(); changed(); return;
+    }
     if (un && sel) { pushUndo(); data.links = data.links.filter(l => !((l.from === sel && l.to === un) || (l.to === sel && l.from === un))); draw(); renderPanel(); changed(); }
     else if (e.target.dataset.act === 'del' && sel) deleteNode(sel);
     else if (rs) {
@@ -1258,8 +1250,8 @@ async function viewDesigner(id) {
     const md = modal(`<h2>${t('Info')}</h2>
       <h3>${t('Legende')}</h3>
       <div class="legend"><span class="dot anchor"></span>${t('Anker (Nutzer)')}</div>
-      <div class="legend"><span class="dot std"></span>${t('Standard, einkaufen')}</div>
-      <div class="legend"><span class="dot diff"></span>${t('Selbst bauen (Differenzierung)')}</div>
+      <div class="legend"><span class="dot diff"></span>${t('Make (selbst bauen)')}</div>
+      <div class="legend"><span class="dot std"></span>${t('Buy (einkaufen)')}</div>
       <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
       <p class="meta">${t('Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.')}</p>
       <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>
@@ -1300,8 +1292,7 @@ async function viewDesigner(id) {
       };
     };
   }
-  const autoAll = () => { pushUndo(); data.nodes.forEach(n => { if (n.type !== 'note') n.label = 'auto'; }); draw(); renderPanel(); changed(); toast(t('Beschriftungen automatisch angeordnet')); };
-  $('#more').onclick = () => sheet(title, (edit ? [{ icon: 'flabel', id: 'aut', label: t('Beschriftungen automatisch anordnen'), run: autoAll }, { icon: 'save', id: 'ver', label: t('Version speichern'), run: saveVersion }] : []).concat([
+  $('#more').onclick = () => sheet(title, (edit ? [{ icon: 'save', id: 'ver', label: t('Version speichern'), run: saveVersion }] : []).concat([
     { icon: 'download', id: 'exs', label: t('Export SVG'), run: () => download(fileSafe(title) + '.svg', mapSvg(data, { id: 'x' }), 'image/svg+xml') },
     { icon: 'download', id: 'exj', label: t('Export JSON'), run: () => download(fileSafe(title) + '.json', JSON.stringify({ title, data }, null, 2), 'application/json') }]));
 
