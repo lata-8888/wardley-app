@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.21';
+const APP_VERSION = '1.22';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -145,7 +145,7 @@ function mapSvg(data, o) {
   nodes.forEach(n => { by[n.id] = n; });
   const BLUE = '#007BC3', CAT_STD = '#1f7fd1', CAT_DIFF = '#e0402a', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,-apple-system,Segoe UI,sans-serif">`;
-  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8"/></filter></defs>`;
+  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
   for (let k = 1; k < 4; k++) {
@@ -176,7 +176,7 @@ function mapSvg(data, o) {
   });
   nodes.forEach(n => {
     if (n.type !== 'note' && typeof n.evo === 'number' && n.evo > n.x + 0.02) {
-      s += `<line x1="${px(n.x) + 30}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
+      s += `<line x1="${px(n.x) + 26}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
   nodes.forEach(n => {
@@ -189,15 +189,15 @@ function mapSvg(data, o) {
     } else {
       const anchor = n.type === 'anchor';
       const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
-      const r = anchor ? 15 : 24;
-      s += `<circle cx="${x}" cy="${y}" r="30" fill="transparent"/>`;
+      const r = 18;
+      s += `<circle cx="${x}" cy="${y}" r="28" fill="transparent"/>`;
       if (anchor) {
         s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#1d1d1b"/>`;
       } else {
         // Kategorie als dezenter farbiger Schatten ohne Rand: rot = selbst bauen, blau = einkaufen, keine = grau ohne Schatten
-        if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 3}" fill="${cat}" opacity=".55" filter="url(#${p}-glow)"/>`;
+        if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 2}" fill="${cat}" opacity=".5" filter="url(#${p}-glow)"/>`;
         s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat || '#8d8b84'}" fill-opacity="${cat ? .2 : .16}"/>`;
-        s += `<circle cx="${x}" cy="${y}" r="8" fill="#fff" stroke="${INK}" stroke-width="3.5"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
       }
       let lx = x + r + 10, ly = y + 6, anc = 'start';
       if (n.label === 'left') { lx = x - r - 10; anc = 'end'; }
@@ -206,8 +206,8 @@ function mapSvg(data, o) {
       s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${esc(n.name)}</text>`;
     }
     s += '</g>';
-    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="31" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
-    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="31" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
+    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
+    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
   });
   return s + '</svg>';
 }
