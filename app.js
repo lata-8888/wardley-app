@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.18';
+const APP_VERSION = '1.19';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -127,7 +127,7 @@ const MAP_ICONS = {
   Commodity: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>'
 };
 const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#2c2c2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
-const G = { W: 1000, H: 690, X0: 90, X1: 970, Y0: 30, Y1: 560 };
+const G = { W: 1000, H: 700, X0: 90, X1: 970, Y0: 30, Y1: 560 };
 const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
@@ -142,9 +142,9 @@ function mapSvg(data, o) {
   const links = (data && data.links) || [];
   const by = {};
   nodes.forEach(n => { by[n.id] = n; });
-  const BLUE = '#007BC3', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
+  const BLUE = '#007BC3', CAT_STD = '#1f7fd1', CAT_DIFF = '#e0402a', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,-apple-system,Segoe UI,sans-serif">`;
-  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#D85A30"/></marker></defs>`;
+  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9"/></filter></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
   for (let k = 1; k < 4; k++) {
@@ -163,6 +163,11 @@ function mapSvg(data, o) {
     s += `<text x="${cx}" y="${G.Y1 + 72}" font-size="24" font-weight="600" text-anchor="middle" fill="${INK}">${esc(n)}</text>`;
   });
   s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
+  // Legende der zwei Kategorien (roter / blauer Schatten)
+  [[CAT_DIFF, t('Selbst bauen (Differenzierung)'), G.X0], [CAT_STD, t('Standard, einkaufen'), G.X0 + 340]].forEach(([c, lab, lx]) => {
+    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="2"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
+    s += `<text x="${lx + 32}" y="${G.Y1 + 106}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
+  });
   // Verbindungen: kräftig in Blau
   links.forEach(l => {
     const a = by[l.from], b = by[l.to];
@@ -170,7 +175,7 @@ function mapSvg(data, o) {
   });
   nodes.forEach(n => {
     if (n.type !== 'note' && typeof n.evo === 'number' && n.evo > n.x + 0.02) {
-      s += `<line x1="${px(n.x) + 18}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#D85A30" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
+      s += `<line x1="${px(n.x) + 30}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
   nodes.forEach(n => {
@@ -182,11 +187,17 @@ function mapSvg(data, o) {
       s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${esc(n.name)}</text>`;
     } else {
       const anchor = n.type === 'anchor';
-      const r = anchor ? 14 : 12;
-      const fill = anchor ? '#E1F5EE' : n.build ? '#FAECE7' : '#F1EFE8';
-      const stroke = anchor ? '#0F6E56' : n.build ? '#993C1D' : '#444441';
-      s += `<circle cx="${x}" cy="${y}" r="24" fill="transparent"/>`;
-      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="3.5"/>`;
+      const cat = n.build ? CAT_DIFF : CAT_STD;
+      const r = anchor ? 15 : 24;
+      s += `<circle cx="${x}" cy="${y}" r="30" fill="transparent"/>`;
+      if (anchor) {
+        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#E1F5EE" stroke="#0F6E56" stroke-width="4"/>`;
+      } else {
+        // Kategorie als farbiger Schatten: rot = selbst bauen, blau = einkaufen
+        s += `<circle cx="${x}" cy="${y}" r="${r + 4}" fill="${cat}" opacity=".95" filter="url(#${p}-glow)"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cat}" fill-opacity=".3" stroke="${cat}" stroke-width="3"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="8" fill="#fff" stroke="${INK}" stroke-width="3.5"/>`;
+      }
       let lx = x + r + 10, ly = y + 6, anc = 'start';
       if (n.label === 'left') { lx = x - r - 10; anc = 'end'; }
       else if (n.label === 'below') { lx = x; ly = y + r + 28; anc = 'middle'; }
@@ -194,8 +205,8 @@ function mapSvg(data, o) {
       s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${esc(n.name)}</text>`;
     }
     s += '</g>';
-    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="23" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
-    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="23" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
+    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="31" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
+    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="31" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
   });
   return s + '</svg>';
 }
