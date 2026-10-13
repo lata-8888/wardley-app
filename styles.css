@@ -228,12 +228,13 @@ body.wide .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .d-panel .links-list{margin-top:4px}
 
 .seg2{display:flex;flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg2 button{flex:1;padding:10px 6px;border:0;border-right:1px solid var(--line);background:none;color:var(--muted);font:inherit;font-weight:600;cursor:pointer}
+.seg2 button{flex:1 1 auto;min-width:0;padding:10px 4px;font-size:.88rem;border:0;border-right:1px solid var(--line);background:none;color:var(--muted);font:inherit;font-weight:600;cursor:pointer}
 .seg2 button:last-child{border-right:0}
 .seg2 button.on{background:var(--crown);color:#fff}
 .seg2 button.on.make{background:#e0402a}
 .seg2 button.on.buy{background:#1f7fd1}
 .seg2 button.on.anchor{background:#1d1d1b}
+.seg2 button.on.empty{background:#8d8b80}
 .seg2.off{opacity:.4;pointer-events:none}
 .frow.ftop{align-items:flex-start}
 .frow.ftop>.flab{padding-top:16px}
