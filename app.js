@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.38';
+const APP_VERSION = '1.39';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -340,6 +340,50 @@ function teaTemplate() {
   };
 }
 
+/* Gemeinsames Gerüst für Versicherung und Bank: gleiche Lage der Elemente, nur die Namen unterscheiden sich.
+   Reihenfolge der Namen: Kunde, Portal/App, Beratung, Kredit/Schaden, Produkt, API/KI-Assistent,
+   Risiko-KI, Risiko/Modelle, Daten, Kernsystem, Zahlungen, Mainframe, Rechenzentrum, Cloud. */
+function chainTemplate(names) {
+  const spec = [
+    ['kunde', 0.517, 0.06, { type: 'anchor' }],
+    ['portal', 0.293, 0.171, { build: true, label: 'left', evo: 0.431 }],
+    ['beratung', 0.690, 0.171],
+    ['kern1', 0.293, 0.317, { build: true }],
+    ['produkt', 0.690, 0.317],
+    ['ki1', 0.086, 0.317, { build: true, label: 'above' }],
+    ['ki2', 0.155, 0.463, { build: true, label: 'left', evo: 0.241 }],
+    ['modelle', 0.621, 0.463, { label: 'left' }],
+    ['daten', 0.276, 0.610, { build: true, label: 'left' }],
+    ['kernsys', 0.638, 0.610, { label: 'left' }],
+    ['zahlung', 0.828, 0.756],
+    ['mainframe', 0.414, 0.756],
+    ['rz', 0.431, 0.902],
+    ['cloud', 0.855, 0.902, { label: 'left' }]
+  ];
+  const id = {};
+  spec.forEach(s => { id[s[0]] = uid(); });
+  const nodes = spec.map((s, i) => Object.assign(
+    { id: id[s[0]], name: names[i], x: s[1], y: s[2], type: 'component', build: false, cat: s[3] && s[3].build ? 'diff' : 'std', label: 'right', desc: '' },
+    s[3] || {}
+  ));
+  const L = (a, b) => ({ from: id[a], to: id[b] });
+  return {
+    nodes,
+    links: [L('kunde', 'portal'), L('kunde', 'beratung'), L('portal', 'kern1'), L('beratung', 'produkt'), L('kern1', 'ki2'), L('ki1', 'kern1'),
+      L('produkt', 'modelle'), L('kern1', 'daten'), L('ki2', 'daten'), L('modelle', 'kernsys'), L('kernsys', 'zahlung'),
+      L('daten', 'mainframe'), L('mainframe', 'rz'), L('zahlung', 'cloud')]
+  };
+}
+const insuranceTemplate = () => chainTemplate(['Kunde', 'Kundenportal & App', 'Beratung & Vertrieb', 'Schadenregulierung', 'Underwriting & Tarifierung',
+  'GenAI-Assistent', 'Betrugs-KI', 'Aktuarielle Modelle', 'Datenplattform', 'Policenverwaltung', 'Zahlungsverkehr', 'Mainframe (Legacy)',
+  'Rechenzentrum', 'Cloud-Infrastruktur']);
+const bankTemplate = () => chainTemplate(['Kunde', 'Mobile-Banking-App', 'Filiale & Beratung', 'Digitale Kreditvergabe', 'Konto & Karten',
+  'Open-Banking-APIs', 'Risiko-KI', 'Risiko & Compliance', 'Datenplattform', 'Kernbanksystem', 'SEPA / SWIFT', 'Mainframe (Legacy)',
+  'Rechenzentrum', 'Cloud-Infrastruktur']);
+function templateData(k) {
+  return k === 'tea' ? teaTemplate() : k === 'insurance' ? insuranceTemplate() : k === 'bank' ? bankTemplate() : { nodes: [], links: [] };
+}
+
 /* ---------- Lokale Datenschicht ---------- */
 const LS_DB = 'wm.db.v1', LS_SES = 'wm.session.v1';
 let db = null;
@@ -459,7 +503,7 @@ const LocalApi = {
     const u = needUser();
     const m = {
       id: uid(), title: String(title || '').trim().slice(0, 100) || t('Neue Map'), owner: u.id, members: {},
-      data: data ? sanitize(data) : template === 'tea' ? teaTemplate() : { nodes: [], links: [] },
+      data: data ? sanitize(data) : templateData(template),
       created: now(), updated: now(), rev: 1
     };
     db.maps.push(m); persist(); return m.id;
@@ -628,7 +672,7 @@ function makeSupabaseApi() {
     },
     async createMap({ title, template, data }) {
       const u = needUser();
-      const d = data ? sanitize(data) : template === 'tea' ? teaTemplate() : { nodes: [], links: [] };
+      const d = data ? sanitize(data) : templateData(template);
       return must(await client().from('maps').insert({ title: String(title || '').trim().slice(0, 100) || t('Neue Map'), owner_id: u.id, data: d }).select('id').single()).id;
     },
     async saveMap(id, { title, data }) {
@@ -878,12 +922,16 @@ async function viewLibrary() {
   $('#new').onclick = () => {
     const md = modal(`<h2>${t('Neue Map')}</h2>
       <label>${t('Titel')}<input id="nt" maxlength="100" placeholder="${t('Neue Map')}"></label>
-      <label>${t('Vorlage')}<select id="ntpl"><option value="">${t('Leer')}</option><option value="tea">${t('Online-Teeshop (Beispiel)')}</option></select></label>
+      <label>${t('Vorlage')}<select id="ntpl"><option value="">${t('Leer')}</option><option value="tea">${t('Online-Teeshop (Beispiel)')}</option><option value="insurance">${t('Versicherung (Beispiel)')}</option><option value="bank">${t('Bank (Beispiel)')}</option></select></label>
       <div class="foot"><button class="btn left" id="imp">${ic('download')} ${t('Import (JSON)')}</button><button class="btn" data-close>${t('Abbrechen')}</button><button class="btn primary" id="ok">${t('Erstellen')}</button></div>`);
     $('#nt', md.el).focus();
     $('#imp', md.el).onclick = () => $('#file').click();
     $('#ok', md.el).onclick = async () => {
-      try { const id = await API.createMap({ title: $('#nt', md.el).value, template: $('#ntpl', md.el).value }); md.close(); location.hash = '#/map/' + id; }
+      try {
+        const sel = $('#ntpl', md.el);
+        const title = $('#nt', md.el).value || (sel.value ? sel.selectedOptions[0].textContent.replace(/\s*\([^)]*\)\s*$/, '') : '');
+        const id = await API.createMap({ title, template: sel.value }); md.close(); location.hash = '#/map/' + id;
+      }
       catch (e) { fail(e); }
     };
   };
