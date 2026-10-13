@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.23';
+const APP_VERSION = '1.24';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -137,20 +137,45 @@ const CATS = ['none', 'std', 'diff'];   // Kategorie: keine (ohne Schatten), Sta
 const LABELS = ['auto', 'right', 'left', 'below', 'above'];
 const LABEL_R = 18;   // Radius der Bausteine
 /* Beschriftungen automatisch platzieren: pro Baustein die Position (rechts/links/unten/oben) mit den wenigsten Überschneidungen */
+/* Zeilenumbruch für lange Namen: an Leerzeichen und Bindestrichen, überlange Wörter mit «-» trennen */
+function wrapText(text, max) {
+  const words = String(text || '').split(/\s+/).filter(Boolean), lines = [];
+  let cur = '';
+  const push = w => {
+    while (w.length > max) { if (cur) { lines.push(cur); cur = ''; } lines.push(w.slice(0, max - 1) + '-'); w = w.slice(max - 1); }
+    if (!cur) cur = w;
+    else if ((cur + ' ' + w).length <= max) cur += ' ' + w;
+    else { lines.push(cur); cur = w; }
+  };
+  words.forEach(w => {
+    // Bindestrich-Wörter dürfen nach dem «-» umbrechen
+    const parts = w.split(/(?<=-)/);
+    if (parts.length > 1 && w.length > max) parts.forEach(p => { if (cur && (cur + p).length <= max && !/ $/.test(cur)) cur += p; else push(p); });
+    else push(w);
+  });
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+const LABEL_MAX = 22, NOTE_MAX = 22, LINE_H = 26;
 function labelGeom(n, pos) {
-  const x = px(n.x), y = py(n.y), w = Math.max(30, String(n.name).length * (n.type === 'anchor' ? 12.6 : 11.8)), r = LABEL_R;
-  let lx = x + r + 10, ly = y + 6, anc = 'start', x0 = lx;
+  const x = px(n.x), y = py(n.y), r = LABEL_R, lines = wrapText(n.name, LABEL_MAX), k = lines.length;
+  const w = Math.max(30, Math.max(...lines.map(l => l.length)) * (n.type === 'anchor' ? 12.6 : 11.8));
+  let lx = x + r + 10, ly = y + 6 - (k - 1) * LINE_H / 2, anc = 'start', x0 = lx;
   if (pos === 'left') { lx = x - r - 10; anc = 'end'; x0 = lx - w; }
   else if (pos === 'below') { lx = x; ly = y + r + 28; anc = 'middle'; x0 = lx - w / 2; }
-  else if (pos === 'above') { lx = x; ly = y - r - 10; anc = 'middle'; x0 = lx - w / 2; }
-  return { lx, ly, anc, box: { x0, x1: x0 + w, y0: ly - 20, y1: ly + 6 } };
+  else if (pos === 'above') { lx = x; ly = y - r - 10 - (k - 1) * LINE_H; anc = 'middle'; x0 = lx - w / 2; }
+  return { lx, ly, anc, lines, box: { x0, x1: x0 + w, y0: ly - 20, y1: ly + 6 + (k - 1) * LINE_H } };
 }
+const noteGeom = n => {
+  const lines = wrapText(n.name, NOTE_MAX), w = Math.max(90, Math.max(...lines.map(l => l.length)) * 11.5 + 28), h = 36 + (lines.length - 1) * 25;
+  return { lines, w, h };
+};
 function autoLabels(nodes, links) {
   const by = {}; nodes.forEach(n => { by[n.id] = n; });
   const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
   const nodeBox = n => {
     const x = px(n.x), y = py(n.y);
-    if (n.type === 'note') { const w = Math.max(90, n.name.length * 11.5 + 28); return { x0: x - w / 2, x1: x + w / 2, y0: y - 18, y1: y + 18 }; }
+    if (n.type === 'note') { const g = noteGeom(n); return { x0: x - g.w / 2, x1: x + g.w / 2, y0: y - 18, y1: y - 18 + g.h }; }
     return { x0: x - 24, x1: x + 24, y0: y - 24, y1: y + 24 };
   };
   const segHitsBox = (ax, ay, bx, by2, b) => {
@@ -234,9 +259,9 @@ function mapSvg(data, o) {
     const x = px(n.x), y = py(n.y);
     s += `<g data-node="${esc(n.id)}" style="cursor:pointer">`;
     if (n.type === 'note') {
-      const w = Math.max(90, n.name.length * 11.5 + 28);
-      s += `<rect x="${x - w / 2}" y="${y - 18}" width="${w}" height="36" rx="5" fill="#FAEEDA" stroke="#854F0B" stroke-width="2"/>`;
-      s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${esc(n.name)}</text>`;
+      const g = noteGeom(n), w = g.w;
+      s += `<rect x="${x - w / 2}" y="${y - 18}" width="${w}" height="${g.h}" rx="5" fill="#FAEEDA" stroke="#854F0B" stroke-width="2"/>`;
+      s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${g.lines.map((l, i) => `<tspan x="${x}" dy="${i ? 25 : 0}">${esc(l)}</tspan>`).join('')}</text>`;
     } else {
       const anchor = n.type === 'anchor';
       const cat = n.cat === 'diff' ? CAT_DIFF : n.cat === 'std' ? CAT_STD : null;
@@ -251,7 +276,7 @@ function mapSvg(data, o) {
         s += `<circle cx="${x}" cy="${y}" r="6.5" fill="#fff" stroke="${INK}" stroke-width="3"/>`;
       }
       const g = labelGeom(n, n.label === 'auto' ? (autoPos[n.id] || 'right') : n.label), lx = g.lx, ly = g.ly, anc = g.anc;
-      s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${esc(n.name)}</text>`;
+      s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${g.lines.map((l, i) => `<tspan x="${lx}" dy="${i ? LINE_H : 0}">${esc(l)}</tspan>`).join('')}</text>`;
     }
     s += '</g>';
     if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
