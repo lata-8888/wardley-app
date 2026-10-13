@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.30';
+const APP_VERSION = '1.31';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -122,11 +122,7 @@ const STAGES = ['Genesis', 'Custom built', 'Product', 'Commodity'];
 /* Einfache Linien-Symbole (24×24) für die Map: Sichtbarkeit und Entwicklungsstufen */
 const MAP_ICONS = {
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  eyeoff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>',
-  Genesis: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
-  'Custom built': '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
-  Product: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
-  Commodity: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>'
+  eyeoff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>'
 };
 const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#2c2c2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
 const G = { W: 1000, H: 700, X0: 90, X1: 970, Y0: 30, Y1: 560 };
@@ -235,7 +231,7 @@ function mapSvg(data, o) {
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
   for (let k = 1; k < 4; k++) {
-    s += `<line x1="${G.X0 + k * colW}" y1="${G.Y0}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="#b9b7ac" stroke-width="1.5" stroke-dasharray="6 6"/>`;
+    s += `<line x1="${G.X0 + k * colW}" y1="${G.Y0}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="#8d8b80" stroke-width="1.5"/>`;
   }
   // Achsen mit Pfeilspitzen
   s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X0}" y2="${G.Y0 - 6}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
@@ -244,12 +240,13 @@ function mapSvg(data, o) {
   s += `<path d="M${G.X1 - 6} ${G.Y1 - 7}L${G.X1 + 8} ${G.Y1}L${G.X1 - 6} ${G.Y1 + 7}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
   s += mapIcon('eye', 26, G.Y0 + 4, 42, t('Sichtbar'));
   s += mapIcon('eyeoff', 26, G.Y1 - 48, 42, t('Unsichtbar'));
+  // Tabellenkopf: vier Spalten mit den Entwicklungsstufen (ohne Symbole)
+  s += `<rect x="${G.X0}" y="${G.Y1}" width="${G.X1 - G.X0}" height="46" fill="#ecebe4" stroke="#8d8b80" stroke-width="1.5"/>`;
+  for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${G.Y1}" x2="${G.X0 + k * colW}" y2="${G.Y1 + 46}" stroke="#8d8b80" stroke-width="1.5"/>`;
   STAGES.forEach((n, i) => {
-    const cx = G.X0 + colW * i + colW / 2;
-    s += mapIcon(n, cx - 18, G.Y1 + 10, 36, n);
-    s += `<text x="${cx}" y="${G.Y1 + 72}" font-size="24" font-weight="600" text-anchor="middle" fill="${INK}">${esc(n)}</text>`;
+    s += `<text x="${G.X0 + colW * i + colW / 2}" y="${G.Y1 + 31}" font-size="22" font-weight="700" text-anchor="middle" fill="${INK}">${esc(n)}</text>`;
   });
-  s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
+  s += `<text x="${G.X1}" y="${G.Y1 + 80}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
   // Legende der zwei Kategorien (roter / blauer Schatten)
   [[CAT_DIFF, t('Make (Differenzierung)'), G.X0], [CAT_STD, t('Buy (Standard)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
     s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
