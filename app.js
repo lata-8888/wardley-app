@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.31';
+const APP_VERSION = '1.32';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -125,7 +125,7 @@ const MAP_ICONS = {
   eyeoff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>'
 };
 const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#2c2c2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
-const G = { W: 1000, H: 700, X0: 90, X1: 970, Y0: 30, Y1: 560 };
+const G = { W: 1000, H: 700, X0: 90, X1: 970, Y0: 70, Y1: 600 };
 const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
@@ -230,27 +230,21 @@ function mapSvg(data, o) {
   s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
-  for (let k = 1; k < 4; k++) {
-    s += `<line x1="${G.X0 + k * colW}" y1="${G.Y0}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="#8d8b80" stroke-width="1.5"/>`;
-  }
-  // Achsen mit Pfeilspitzen
-  s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X0}" y2="${G.Y0 - 6}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
-  s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X1 + 6}" y2="${G.Y1}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
-  s += `<path d="M${G.X0 - 7} ${G.Y0 + 6}L${G.X0} ${G.Y0 - 8}L${G.X0 + 7} ${G.Y0 + 6}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
-  s += `<path d="M${G.X1 - 6} ${G.Y1 - 7}L${G.X1 + 8} ${G.Y1}L${G.X1 - 6} ${G.Y1 + 7}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // Tabelle: Rahmen rundum, Kopfzeile mit den vier Entwicklungsstufen (dezent, ohne Pfeile)
+  const TL = '#9a988d', HT = G.Y0 - 36;
+  s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="36" fill="#ecebe4"/>`;
+  s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="${G.Y1 - HT}" fill="none" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
+  for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${HT}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
   s += mapIcon('eye', 26, G.Y0 + 4, 42, t('Sichtbar'));
   s += mapIcon('eyeoff', 26, G.Y1 - 48, 42, t('Unsichtbar'));
-  // Tabellenkopf: vier Spalten mit den Entwicklungsstufen (ohne Symbole)
-  s += `<rect x="${G.X0}" y="${G.Y1}" width="${G.X1 - G.X0}" height="46" fill="#ecebe4" stroke="#8d8b80" stroke-width="1.5"/>`;
-  for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${G.Y1}" x2="${G.X0 + k * colW}" y2="${G.Y1 + 46}" stroke="#8d8b80" stroke-width="1.5"/>`;
   STAGES.forEach((n, i) => {
-    s += `<text x="${G.X0 + colW * i + colW / 2}" y="${G.Y1 + 31}" font-size="22" font-weight="700" text-anchor="middle" fill="${INK}">${esc(n)}</text>`;
+    s += `<text x="${G.X0 + colW * i + colW / 2}" y="${HT + 24}" font-size="17" text-anchor="middle" fill="#555">${esc(n)}</text>`;
   });
-  s += `<text x="${G.X1}" y="${G.Y1 + 80}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
   // Legende der zwei Kategorien (roter / blauer Schatten)
   [[CAT_DIFF, t('Make (Differenzierung)'), G.X0], [CAT_STD, t('Buy (Standard)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
-    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 100}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
-    s += `<text x="${lx + 32}" y="${G.Y1 + 106}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
+    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
+    s += `<text x="${lx + 32}" y="${G.Y1 + 54}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
   });
   // Verbindungen: kräftig in Blau
   links.forEach(l => {
