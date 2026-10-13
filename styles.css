@@ -207,7 +207,7 @@ body.wide .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .dot{width:12px;height:12px;border-radius:50%;border:1.5px solid;display:inline-block}
 .dot.std{background:rgba(31,127,209,.25);border-color:transparent;box-shadow:0 0 6px 2px rgba(31,127,209,.4)}
 .dot.diff{background:rgba(224,64,42,.25);border-color:transparent;box-shadow:0 0 6px 2px rgba(224,64,42,.4)}
-.dot.anchor{background:#e1f5ee;border-color:#0f6e56}
+.dot.anchor{background:#1d1d1b;border-color:#1d1d1b}
 .vrow{display:flex;gap:8px;align-items:center;font-size:.9rem;margin:6px 0}
 .vrow span{flex:1}
 .links-list .vrow button{border:none;background:none;color:var(--no);font-size:1.1rem}
