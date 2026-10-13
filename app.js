@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.33';
+const APP_VERSION = '1.34';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -219,7 +219,7 @@ function mapSvg(data, o) {
   const links = (data && data.links) || [];
   const by = {};
   nodes.forEach(n => { by[n.id] = n; });
-  const BLUE = '#007BC3', CAT_STD = '#1f7fd1', CAT_DIFF = '#e0402a', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
+  const BLUE = '#007BC3', CAT_STD = '#1f7fd1', CAT_DIFF = '#e0402a', INK = '#1d1d1b', GREEN = '#2e9d57', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,-apple-system,Segoe UI,sans-serif">`;
   s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#3a3a37"/></marker><filter id="${p}-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
@@ -228,13 +228,11 @@ function mapSvg(data, o) {
   const TL = '#9a988d', HT = G.Y0 - 36;
   s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="36" fill="#ecebe4"/>`;
   s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="${G.Y1 - HT}" fill="none" stroke="${TL}" stroke-width="1.5"/>`;
-  s += `<line x1="${G.X0 - 44}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
   for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${HT}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
   // schmale Kolonne links: Sichtbar (oben bündig) und Unsichtbar (unten bündig), um 90° gedreht
   const XC = G.X0 - 44, cxm = XC + 22;
-  s += `<rect x="${XC}" y="${HT}" width="${G.X0 - XC}" height="${G.Y1 - HT}" fill="#f6f5f0"/>`;
-  s += `<rect x="${XC}" y="${HT}" width="${G.X1 - XC}" height="${G.Y1 - HT}" fill="none" stroke="${TL}" stroke-width="1.5"/>`;
-  s += `<line x1="${G.X0}" y1="${HT}" x2="${G.X0}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<rect x="${XC}" y="${G.Y0}" width="${G.X0 - XC}" height="${G.Y1 - G.Y0}" fill="#ecebe4" stroke="${TL}" stroke-width="1.5"/>`;
   s += `<text transform="translate(${cxm + 6} ${G.Y0 + 8}) rotate(-90)" font-size="17" text-anchor="end" fill="#555">${esc(t('Sichtbar'))}</text>`;
   s += `<text transform="translate(${cxm + 6} ${G.Y1 - 8}) rotate(-90)" font-size="17" text-anchor="start" fill="#555">${esc(t('Unsichtbar'))}</text>`;
   STAGES.forEach((n, i) => {
@@ -252,6 +250,7 @@ function mapSvg(data, o) {
   });
   nodes.forEach(n => {
     if (typeof n.evo === 'number' && n.evo > n.x + 0.02) {
+      s += `<rect x="${px(n.x) + 26}" y="${py(n.y) - 4}" width="${Math.max(0, px(n.evo) - px(n.x) - 26)}" height="8" rx="4" fill="${GREEN}" opacity=".85" filter="url(#${p}-glow)"/>`;
       s += `<line x1="${px(n.x) + 26}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#3a3a37" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
@@ -1111,7 +1110,7 @@ async function viewDesigner(id) {
     const row = (icon, label, ctl) => `<div class="frow"><span class="flab">${esc(label)}</span>${ctl}</div>`;
     panel.innerHTML = `${row('fname', 'Name', `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
       ${row('ftype', 'Type', `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="diff" class="${comp && n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on anchor' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="std" class="${comp && n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`)}
-      ${row('fevo', 'Evolution', `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
+      ${row('fevo', 'Trend', `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
       ${row('fdesc', 'Comment', `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
       ${linkHtml}
