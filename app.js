@@ -7,11 +7,13 @@
 const CFG = root.APP_CONFIG || { BACKEND: 'local' };
 const DICT = root.WM_I18N || { en: {} };   // Übersetzungen (i18n.js): Schlüssel = deutscher Text
 const PREF_KEY = 'wm.prefs.v1';
-const prefs = { theme: 'auto', lang: 'de', wide: null };   // persönliche Einstellungen, nur in diesem Browser
+const LANGS = { en: 'English', de: 'Deutsch', fr: 'Français', it: 'Italiano' };
+const LOCALES = { en: 'en-GB', de: 'de-CH', fr: 'fr-CH', it: 'it-CH' };
+const prefs = { theme: 'auto', lang: 'en', wide: null };   // persönliche Einstellungen, nur in diesem Browser
 try {
   const p = JSON.parse((root.localStorage && root.localStorage.getItem(PREF_KEY)) || '{}') || {};
   if (['light', 'dark', 'auto'].includes(p.theme)) prefs.theme = p.theme;
-  if (p.lang === 'en' || p.lang === 'de') prefs.lang = p.lang;
+  if (LANGS[p.lang]) prefs.lang = p.lang;
   if (typeof p.wide === 'boolean') prefs.wide = p.wide;
 } catch (e) { console.error(e); }
 let LANG = prefs.lang;
@@ -43,12 +45,12 @@ const $ = (s, r) => (r || document).querySelector(s);
 const fmtDate = iso => {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString(LANG === 'en' ? 'en-GB' : 'de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
-      d.toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-CH', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString(LOCALES[LANG] || 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString(LOCALES[LANG] || 'en-GB', { hour: '2-digit', minute: '2-digit' });
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.28';
+const APP_VERSION = '1.29';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -135,8 +137,8 @@ const ny = y => (y - G.Y0) / (G.Y1 - G.Y0);
 const TYPES = ['component', 'anchor'];   // Element oder Anker (Notizen gibt es nicht mehr)
 const CATS = ['none', 'std', 'diff'];   // Kategorie: keine (ohne Schatten), Standard (blau), Differenzierung (rot)
 const LABELS = ['auto', 'right', 'left', 'below', 'above'];
-const LABEL_R = 18;   // Radius der Bausteine
-/* Beschriftungen automatisch platzieren: pro Baustein die Position (rechts/links/unten/oben) mit den wenigsten Überschneidungen */
+const LABEL_R = 18;   // Radius der Elemente
+/* Beschriftungen automatisch platzieren: pro Element die Position (rechts/links/unten/oben) mit den wenigsten Überschneidungen */
 /* Zeilenumbruch für lange Namen: an Leerzeichen und Bindestrichen, überlange Wörter mit «-» trennen */
 function wrapText(text, max) {
   const words = String(text || '').split(/\s+/).filter(Boolean), lines = [];
@@ -694,7 +696,7 @@ function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const monthLabel = iso => {
-  try { return new Date(iso).toLocaleDateString(LANG === 'en' ? 'en-GB' : 'de-CH', { month: 'long', year: 'numeric' }); } catch (e) { return ''; }
+  try { return new Date(iso).toLocaleDateString(LOCALES[LANG] || 'en-GB', { month: 'long', year: 'numeric' }); } catch (e) { return ''; }
 };
 const fileSafe = s => String(s).replace(/[^\w\-]+/g, '_').slice(0, 60) || 'map';
 const fail = e => { console.error(e); toast(e && e.message ? e.message : String(e)); };
@@ -815,7 +817,7 @@ async function viewProfile() {
       <div class="role"><span class="rbadge">${esc((u.name || 'M').trim().charAt(0).toUpperCase())}</span>${t('Mitglied')}</div>
       ${u.isAdmin ? `<div class="role"><span class="rbadge sq">${ic('admin')}</span>Admin</div>` : ''}</div>
     <div class="card pad"><h2>${t('Sprache')}</h2><p class="desc">${t('Wähle die Sprache, in der du die App nutzen möchtest.')}</p>
-      <select id="sel-lang" aria-label="${t('Sprache')}"><option value="de" ${LANG === 'de' ? 'selected' : ''}>Deutsch</option><option value="en" ${LANG === 'en' ? 'selected' : ''}>English</option></select></div>
+      <select id="sel-lang" aria-label="${t('Sprache')}">${Object.keys(LANGS).map(c => `<option value="${c}" ${LANG === c ? 'selected' : ''}>${LANGS[c]}</option>`).join('')}</select></div>
     <div class="card pad"><h2>${t('Darstellung')}</h2><p class="desc">${t('Wähle, wie die App aussehen soll.')}</p>
       <div class="seg3" id="seg-theme" role="radiogroup">${themes.map(([v, i, l]) =>
         `<button type="button" role="radio" aria-checked="${prefs.theme === v}" data-v="${v}" class="${prefs.theme === v ? 'on' : ''}">${ic(i)}<span>${l}</span></button>`).join('')}</div></div>
@@ -1044,7 +1046,7 @@ async function viewDesigner(id) {
     right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('mapinfo', 'info', t('Info'))}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
   view().innerHTML = `<div class="d-toolbar">
       ${edit ? `<div class="tools"><button class="tbtn tool active" data-tool="select">${ic('select')}<span>${t('Auswählen')}</span></button>
-      <button class="tbtn tool" data-tool="add" aria-label="${t('Baustein')}" title="${t('Baustein')}">${ic('node')}<span>${t('Neu')}</span></button>
+      <button class="tbtn tool" data-tool="add" aria-label="${t('Element')}" title="${t('Element')}">${ic('node')}<span>${t('Neu')}</span></button>
       <button class="tbtn tool" data-tool="link">${ic('link')}<span>${t('Verbinden')}</span></button></div>
       ${iconBtn('undo', 'undo', t('Rückgängig'))}${iconBtn('redo', 'redo', t('Wiederholen'))}` : ''}
       <span id="status">${t('Gespeichert')}</span></div>
@@ -1107,7 +1109,7 @@ async function viewDesigner(id) {
     panelKey = n ? n.id : '';
     $('#dmain').classList.toggle('nopanel', !n);
     panel.classList.toggle('empty', !n);
-    if (!n) { panel.innerHTML = `<p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>`; return; }
+    if (!n) { panel.innerHTML = `<p class="meta">${edit ? t('Klicke ein Element an, um es zu bearbeiten. Mit + Neu setzt du ein neues Element aufs Canvas.') : t('Klicke ein Element an, um Details zu sehen.')}</p>`; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
     const linkHtml = `<div class="frow" style="align-items:flex-start"><span class="flab">Link</span><div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
@@ -1124,7 +1126,7 @@ async function viewDesigner(id) {
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
       ${row('fdesc', 'Comment', `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
       ${linkHtml}
-      <button class="btn danger" style="margin-top:10px" data-act="del">${t('Baustein löschen')}</button>`;
+      <button class="btn danger" style="margin-top:10px" data-act="del">${t('Element löschen')}</button>`;
   }
 
   panel.addEventListener('focusin', e => { if (edit && e.target.dataset && e.target.dataset.f) pushUndo(); });
@@ -1188,7 +1190,7 @@ async function viewDesigner(id) {
     if (!edit) { select(g ? g.dataset.node : null); return; }
     if (tool === 'add' && !g) {
       pushUndo();
-      const n = { id: uid(), name: t('Neuer Baustein'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'auto', desc: '' };
+      const n = { id: uid(), name: t('Neues Element'), x: clamp(nx(pt.x), 0, 1), y: clamp(ny(pt.y), 0, 1), type: 'component', build: false, cat: 'none', label: 'auto', desc: '' };
       data.nodes.push(n); setTool('select'); select(n.id); changed();
       const f = $('#f-name'); if (f) { f.focus(); f.select(); }
       return;
@@ -1267,7 +1269,7 @@ async function viewDesigner(id) {
       <div class="legend"><span class="dot anchor"></span>${t('Anker (Nutzer)')}</div>
       <div class="legend"><span class="dot diff"></span>${t('Make (Differenzierung)')}</div>
       <div class="legend"><span class="dot std"></span>${t('Buy (Standard)')}</div>
-      <p class="meta">${edit ? t('Klicke einen Baustein an, um ihn zu bearbeiten. Mit + Baustein setzt du einen neuen Punkt aufs Canvas.') : t('Klicke einen Baustein an, um Details zu sehen.')}</p>
+      <p class="meta">${edit ? t('Klicke ein Element an, um es zu bearbeiten. Mit + Neu setzt du ein neues Element aufs Canvas.') : t('Klicke ein Element an, um Details zu sehen.')}</p>
       <p class="meta">${t('Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.')}</p>
       <h3 style="margin-top:16px">${t('Versionen')}</h3><div id="vl" class="meta">…</div>
       <div class="foot"><button class="btn" data-close>${t('Schliessen')}</button></div>`);

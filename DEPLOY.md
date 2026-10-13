@@ -98,7 +98,7 @@ Angelehnt an die FBRO-Checkliste. `node scripts/check.js` deckt die statischen P
 - Login mit Mobilnummer und PIN in verschiedenen Schreibweisen (`079 123 45 67`, `+41 79 123 45 67`,
   `0041 79 123 45 67`), mit falscher PIN, mit ungültiger oder zu kurzer Nummer, Logout.
 - Library: Map anlegen (leer und Vorlage), duplizieren, teilen, löschen, JSON-Import.
-- Designer: Baustein setzen, verschieben, verbinden, Entwicklungspfeil, Undo und Redo, Autosave,
+- Designer: Element setzen, verschieben, verbinden, Entwicklungspfeil, Undo und Redo, Autosave,
   Version speichern und wiederherstellen, Export SVG und JSON.
 - Rechte: Leser kann nichts ändern, Bearbeiter kann nicht teilen oder löschen, fremde Maps sind unsichtbar.
 - Admin: Person mit Mobilnummer anlegen (PIN leer lassen ergibt die letzten 6 Ziffern), dieselbe Nummer in

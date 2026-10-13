@@ -39,7 +39,7 @@ Aktionen pro Eintrag gebündelt unter dem «…»-Knopf, grosse Titel mit Barlow
 - Profil: Name und Nummer, Rollen, PIN ändern, Sprache (Deutsch, English), Darstellung (Hell, Dunkel, Automatisch), App installieren, Abmelden.
   Sprache und Darstellung werden pro Gerät im Browser gespeichert (`localStorage`).
 - Library: Karten mit Vorschau, Suche, «+» für neue Map (leer, Teeshop-Vorlage oder JSON-Import), «…» pro Karte: Öffnen, Duplizieren, Teilen, Löschen.
-- Designer: Werkzeugleiste (Auswählen, Baustein, Verbinden, Rückgängig, Wiederholen), «…» oben rechts: Version speichern, Export SVG und JSON. Bausteine setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
+- Designer: Werkzeugleiste (Auswählen, Element, Verbinden, Rückgängig, Wiederholen), «…» oben rechts: Version speichern, Export SVG und JSON. Elemente setzen und verschieben, Verbinden, Entwicklungspfeile, Beschriftungsposition,
   Undo und Redo (Strg+Z, Strg+Y), Autosave, Versionen mit Wiederherstellung, Export als SVG und JSON.
 - Admin Console: Personenliste, «+» legt eine Person mit Mobilnummer an, «…» pro Person: Admin-Rolle, aktivieren oder deaktivieren, PIN zurücksetzen
   (auf Standard oder eigene PIN), löschen.
