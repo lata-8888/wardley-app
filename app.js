@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.34';
+const APP_VERSION = '1.35';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -231,17 +231,23 @@ function mapSvg(data, o) {
   s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
   for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${HT}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
   // schmale Kolonne links: Sichtbar (oben bündig) und Unsichtbar (unten bündig), um 90° gedreht
-  const XC = G.X0 - 44, cxm = XC + 22;
+  const XC = G.X0 - 36, cxm = XC + 18;
   s += `<rect x="${XC}" y="${G.Y0}" width="${G.X0 - XC}" height="${G.Y1 - G.Y0}" fill="#ecebe4" stroke="${TL}" stroke-width="1.5"/>`;
   s += `<text transform="translate(${cxm + 6} ${G.Y0 + 8}) rotate(-90)" font-size="17" text-anchor="end" fill="#555">${esc(t('Sichtbar'))}</text>`;
   s += `<text transform="translate(${cxm + 6} ${G.Y1 - 8}) rotate(-90)" font-size="17" text-anchor="start" fill="#555">${esc(t('Unsichtbar'))}</text>`;
   STAGES.forEach((n, i) => {
     s += `<text x="${G.X0 + colW * i + colW / 2}" y="${HT + 24}" font-size="17" text-anchor="middle" fill="#555">${esc(n)}</text>`;
   });
-  // Legende der zwei Kategorien (roter / blauer Schatten)
-  [[CAT_DIFF, t('Make (Differenzierung)'), G.X0], [CAT_STD, t('Buy (Standard)'), G.X0 + 300]].forEach(([c, lab, lx]) => {
-    s += `<circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${G.Y1 + 48}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
-    s += `<text x="${lx + 32}" y="${G.Y1 + 54}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
+  // Legende: Make, Buy, Trend – als Gruppe unter der Tabelle zentriert
+  const legend = [[CAT_DIFF, t('Make (Differenzierung)')], [CAT_STD, t('Buy (Standard)')], [GREEN, t('Trend')]];
+  const SYM = 32, GAP = 44, LY = G.Y1 + 48, tw = lab => Math.round(lab.length * 9.4);
+  const total = legend.reduce((a, [, lab]) => a + SYM + tw(lab), 0) + GAP * (legend.length - 1);
+  let lx = (G.X0 - 36 + G.X1) / 2 - total / 2;
+  legend.forEach(([c, lab], i) => {
+    if (i < 2) s += `<circle cx="${lx + 12}" cy="${LY}" r="11" fill="${c}" opacity=".5" filter="url(#${p}-glow)"/><circle cx="${lx + 12}" cy="${LY}" r="11" fill="${c}" fill-opacity=".22"/><circle cx="${lx + 12}" cy="${LY}" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/>`;
+    else s += `<rect x="${lx}" y="${LY - 4}" width="22" height="8" rx="4" fill="${c}" opacity=".85" filter="url(#${p}-glow)"/><line x1="${lx}" y1="${LY}" x2="${lx + 22}" y2="${LY}" stroke="#3a3a37" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
+    s += `<text x="${lx + SYM}" y="${LY + 6}" font-size="18" fill="#2c2c2a">${esc(lab)}</text>`;
+    lx += SYM + tw(lab) + GAP;
   });
   // Verbindungen: kräftig in Blau
   links.forEach(l => {
