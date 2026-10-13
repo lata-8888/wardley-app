@@ -1,5 +1,5 @@
 'use strict';
-const CACHE = 'wardley-v50';
+const CACHE = 'wardley-v51';
 const SHELL = [
   './',
   'index.html',

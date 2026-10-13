@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.35';
+const APP_VERSION = '1.36';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -1106,21 +1106,20 @@ async function viewDesigner(id) {
     panel.classList.toggle('empty', !n);
     if (!n) { panel.innerHTML = `<p class="meta">${edit ? t('Klicke ein Element an, um es zu bearbeiten. Mit + Neu setzt du ein neues Element aufs Canvas.') : t('Klicke ein Element an, um Details zu sehen.')}</p>`; return; }
     const links = data.links.filter(l => l.from === n.id || l.to === n.id).map(l => byId(l.from === n.id ? l.to : l.from)).filter(Boolean);
-    const linkHtml = `<div class="frow" style="align-items:flex-start"><span class="flab">Link</span><div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
+    const linkHtml = `<div class="frow ftop links"><span class="flab">Link</span><div class="links-list" style="flex:1">${links.length ? links.map(o => `<div class="vrow"><span>${esc(o.name)}</span>${edit ? `<button data-unlink="${esc(o.id)}" aria-label="${t('Entfernen')}">×</button>` : ''}</div>`).join('') : `<span class="meta">${t('Keine')}</span>`}</div></div>`;
     if (!edit) {
       panel.innerHTML = `<h3>${esc(n.name)}</h3><p class="meta">${n.type === 'anchor' ? t('Anker') : n.cat === 'diff' ? t('Make (Differenzierung)') : n.cat === 'std' ? t('Buy (Standard)') : t('Element')}</p>
         ${n.desc ? `<div class="ro">${esc(n.desc)}</div>` : ''}${linkHtml}`;
       return;
     }
     const comp = n.type === 'component';
-    const row = (icon, label, ctl) => `<div class="frow"><span class="flab">${esc(label)}</span>${ctl}</div>`;
+    const row = (icon, label, ctl) => `<div class="frow${icon === 'fdesc' ? ' ftop' : ''}"><span class="flab">${esc(label)}</span>${ctl}</div>`;
     panel.innerHTML = `${row('fname', 'Name', `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
       ${row('ftype', 'Type', `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="diff" class="${comp && n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on anchor' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="std" class="${comp && n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`)}
       ${row('fevo', 'Trend', `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
       ${row('fdesc', 'Comment', `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
-      ${linkHtml}
-      <button class="btn danger" style="margin-top:10px" data-act="del">${t('Element löschen')}</button>`;
+      ${linkHtml}`;
   }
 
   panel.addEventListener('focusin', e => { if (edit && e.target.dataset && e.target.dataset.f) pushUndo(); });
