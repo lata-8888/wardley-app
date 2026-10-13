@@ -233,3 +233,4 @@ body.wide .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .seg2 button.on{background:var(--crown);color:#fff}
 .seg2 button.on.make{background:#e0402a}
 .seg2 button.on.buy{background:#1f7fd1}
+.seg2.off{opacity:.4;pointer-events:none}

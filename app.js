@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.25';
+const APP_VERSION = '1.26';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -1104,7 +1104,7 @@ async function viewDesigner(id) {
     const row = (icon, label, ctl) => `<div class="frow" title="${esc(label)}">${ic(icon)}${ctl}</div>`;
     panel.innerHTML = `${row('fname', t('Name'), `<input data-f="name" id="f-name" value="${esc(n.name)}" maxlength="80" aria-label="${t('Name')}">`)}
       ${row('ftype', t('Typ'), `<div class="seg2" role="group" aria-label="${t('Typ')}"><button type="button" data-seg="type" data-v="anchor" class="${n.type === 'anchor' ? 'on' : ''}">${t('Anker')}</button><button type="button" data-seg="type" data-v="component" class="${n.type === 'component' ? 'on' : ''}">${t('Element')}</button></div>`)}
-      ${comp ? row('fcat', t('Kategorie'), `<div class="seg2" role="group" aria-label="${t('Kategorie')}"><button type="button" data-seg="cat" data-v="diff" class="${n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="cat" data-v="std" class="${n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`) : ''}
+      ${row('fcat', t('Kategorie') + (comp ? '' : ' – ' + t('gilt nur für Elemente')), `<div class="seg2${comp ? '' : ' off'}" role="group" aria-label="${t('Kategorie')}"><button type="button" data-seg="cat" data-v="diff" class="${n.cat === 'diff' ? 'on make' : ''}">${t('Make')}</button><button type="button" data-seg="cat" data-v="std" class="${n.cat === 'std' ? 'on buy' : ''}">${t('Buy')}</button></div>`)}
       ${row('fevo', t('Entwicklung') + ' – ' + t('Pfeil'), `<input type="checkbox" class="evochk" data-f="evoOn" ${typeof n.evo === 'number' ? 'checked' : ''} aria-label="${t('Pfeil')}" title="${t('Pfeil')}">
         <input type="range" data-f="evo" min="0" max="100" value="${Math.round((typeof n.evo === 'number' ? n.evo : n.x) * 100)}" ${typeof n.evo === 'number' ? '' : 'disabled'} aria-label="${t('Entwicklung')}">`)}
       ${row('fdesc', t('Beschreibung'), `<textarea data-f="desc" rows="2" maxlength="500" aria-label="${t('Beschreibung')}">${esc(n.desc)}</textarea>`)}
@@ -1133,7 +1133,7 @@ async function viewDesigner(id) {
     if (!edit) return;
     const un = e.target.dataset.unlink, rs = e.target.dataset.restore;
     const sg = e.target.closest('[data-seg]'), sn = sel && byId(sel);
-    if (sg && sn) {
+    if (sg && sn && !(sg.dataset.seg === 'cat' && sn.type !== 'component')) {
       pushUndo();
       if (sg.dataset.seg === 'type') sn.type = sg.dataset.v === 'anchor' ? 'anchor' : 'component';
       else { sn.cat = sn.cat === sg.dataset.v ? 'none' : sg.dataset.v; sn.build = sn.cat === 'diff'; }   // erneutes Antippen = keine Kategorie

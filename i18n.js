@@ -62,6 +62,7 @@ window.WM_I18N = {
     'Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.': 'Add the app to your home screen to open it in full screen.',
     'Legende': 'Legend',
     'Info': 'Info',
+    'gilt nur für Elemente': 'applies to elements only',
     'Anker': 'Anchor',
     'Element': 'Element',
     'Make': 'Make',
