@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.32';
+const APP_VERSION = '1.33';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -119,12 +119,6 @@ const fmtPhone = phone => {
 
 /* ---------- Geometrie und Rendering der Map ---------- */
 const STAGES = ['Genesis', 'Custom built', 'Product', 'Commodity'];
-/* Einfache Linien-Symbole (24×24) für die Map: Sichtbarkeit und Entwicklungsstufen */
-const MAP_ICONS = {
-  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  eyeoff: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>'
-};
-const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#2c2c2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
 const G = { W: 1000, H: 700, X0: 90, X1: 970, Y0: 70, Y1: 600 };
 const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
@@ -234,10 +228,15 @@ function mapSvg(data, o) {
   const TL = '#9a988d', HT = G.Y0 - 36;
   s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="36" fill="#ecebe4"/>`;
   s += `<rect x="${G.X0}" y="${HT}" width="${G.X1 - G.X0}" height="${G.Y1 - HT}" fill="none" stroke="${TL}" stroke-width="1.5"/>`;
-  s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<line x1="${G.X0 - 44}" y1="${G.Y0}" x2="${G.X1}" y2="${G.Y0}" stroke="${TL}" stroke-width="1.5"/>`;
   for (let k = 1; k < 4; k++) s += `<line x1="${G.X0 + k * colW}" y1="${HT}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
-  s += mapIcon('eye', 26, G.Y0 + 4, 42, t('Sichtbar'));
-  s += mapIcon('eyeoff', 26, G.Y1 - 48, 42, t('Unsichtbar'));
+  // schmale Kolonne links: Sichtbar (oben bündig) und Unsichtbar (unten bündig), um 90° gedreht
+  const XC = G.X0 - 44, cxm = XC + 22;
+  s += `<rect x="${XC}" y="${HT}" width="${G.X0 - XC}" height="${G.Y1 - HT}" fill="#f6f5f0"/>`;
+  s += `<rect x="${XC}" y="${HT}" width="${G.X1 - XC}" height="${G.Y1 - HT}" fill="none" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<line x1="${G.X0}" y1="${HT}" x2="${G.X0}" y2="${G.Y1}" stroke="${TL}" stroke-width="1.5"/>`;
+  s += `<text transform="translate(${cxm + 6} ${G.Y0 + 8}) rotate(-90)" font-size="17" text-anchor="end" fill="#555">${esc(t('Sichtbar'))}</text>`;
+  s += `<text transform="translate(${cxm + 6} ${G.Y1 - 8}) rotate(-90)" font-size="17" text-anchor="start" fill="#555">${esc(t('Unsichtbar'))}</text>`;
   STAGES.forEach((n, i) => {
     s += `<text x="${G.X0 + colW * i + colW / 2}" y="${HT + 24}" font-size="17" text-anchor="middle" fill="#555">${esc(n)}</text>`;
   });
