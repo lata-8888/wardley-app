@@ -50,7 +50,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.37';
+const APP_VERSION = '1.38';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -269,7 +269,7 @@ function mapSvg(data, o) {
     const r = LABEL_R;
     s += `<circle cx="${x}" cy="${y}" r="28" fill="transparent"/>`;
     if (anchor) {
-      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#1d1d1b"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="11" fill="#1d1d1b"/>`;
     } else {
       // Kategorie als dezenter farbiger Schatten ohne Rand: rot = selbst bauen, blau = einkaufen, keine = grau ohne Schatten
       if (cat) s += `<circle cx="${x}" cy="${y}" r="${r + 2}" fill="${cat}" opacity=".5" filter="url(#${p}-glow)"/>`;
