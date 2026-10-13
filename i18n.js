@@ -62,6 +62,8 @@ window.WM_I18N = {
     'Lege die App auf deinen Startbildschirm, dann öffnet sie sich im Vollbild.': 'Add the app to your home screen to open it in full screen.',
     'Legende': 'Legend',
     'Info': 'Info',
+    'Designer': 'Designer',
+    'Wähle in der Library eine Map aus. Sie öffnet sich dann im Designer, wo du sie bearbeiten kannst.': 'Pick a map in the Library. It opens in the Designer, where you can edit it.',
     'Neu': 'New',
     'Doppelklick (Doppeltippen) zoomt hinein und wieder heraus. Im Zoom verschiebst du den Ausschnitt durch Ziehen auf leerer Fläche.': 'Double-click (double-tap) zooms in and out. While zoomed, drag on an empty area to move the view.',
     'Leser': 'Viewer',

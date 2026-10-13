@@ -48,7 +48,7 @@ const fmtDate = iso => {
   } catch (e) { return ''; }
 };
 
-const APP_VERSION = '1.17';
+const APP_VERSION = '1.18';
 
 /* ---------- Mobilnummer und PIN (wie FBRO) ---------- */
 // Nimmt 079 123 45 67, +41 79 123 45 67, 0041 79 123 45 67, +41 (0)79 123 45 67 und Auslandsnummern
@@ -126,8 +126,8 @@ const MAP_ICONS = {
   Product: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
   Commodity: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>'
 };
-const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#5f5e5a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
-const G = { W: 1000, H: 660, X0: 90, X1: 970, Y0: 30, Y1: 560 };
+const mapIcon = (name, x, y, size, label) => `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="none" stroke="#2c2c2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>${esc(label)}</title>${MAP_ICONS[name]}</g>`;
+const G = { W: 1000, H: 690, X0: 90, X1: 970, Y0: 30, Y1: 560 };
 const px = n => G.X0 + n * (G.X1 - G.X0);
 const py = n => G.Y0 + n * (G.Y1 - G.Y0);
 const nx = x => (x - G.X0) / (G.X1 - G.X0);
@@ -142,55 +142,60 @@ function mapSvg(data, o) {
   const links = (data && data.links) || [];
   const by = {};
   nodes.forEach(n => { by[n.id] = n; });
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,sans-serif">`;
-  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#D85A30" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+  const BLUE = '#007BC3', INK = '#1d1d1b', HALO = 'paint-order="stroke" stroke="#fff" stroke-width="5" stroke-linejoin="round"';
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${G.W} ${G.H}" font-family="system-ui,-apple-system,Segoe UI,sans-serif">`;
+  s += `<defs><marker id="${p}-ar" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9z" fill="#D85A30"/></marker></defs>`;
   s += `<rect x="0" y="0" width="${G.W}" height="${G.H}" fill="#fff"/>`;
   const colW = (G.X1 - G.X0) / 4;
   for (let k = 1; k < 4; k++) {
-    s += `<line x1="${G.X0 + k * colW}" y1="${G.Y0}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="#d3d1c7" stroke-width="1" stroke-dasharray="5 5"/>`;
+    s += `<line x1="${G.X0 + k * colW}" y1="${G.Y0}" x2="${G.X0 + k * colW}" y2="${G.Y1}" stroke="#b9b7ac" stroke-width="1.5" stroke-dasharray="6 6"/>`;
   }
-  s += `<line x1="${G.X0}" y1="${G.Y0}" x2="${G.X0}" y2="${G.Y1}" stroke="#888780" stroke-width="1.5"/>`;
-  s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X1}" y2="${G.Y1}" stroke="#888780" stroke-width="1.5"/>`;
-  s += mapIcon('eye', 30, G.Y0, 32, t('Sichtbar'));
-  s += mapIcon('eyeoff', 30, G.Y1 - 34, 32, t('Unsichtbar'));
+  // Achsen mit Pfeilspitzen
+  s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X0}" y2="${G.Y0 - 6}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
+  s += `<line x1="${G.X0}" y1="${G.Y1}" x2="${G.X1 + 6}" y2="${G.Y1}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
+  s += `<path d="M${G.X0 - 7} ${G.Y0 + 6}L${G.X0} ${G.Y0 - 8}L${G.X0 + 7} ${G.Y0 + 6}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s += `<path d="M${G.X1 - 6} ${G.Y1 - 7}L${G.X1 + 8} ${G.Y1}L${G.X1 - 6} ${G.Y1 + 7}" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s += mapIcon('eye', 26, G.Y0 + 4, 42, t('Sichtbar'));
+  s += mapIcon('eyeoff', 26, G.Y1 - 48, 42, t('Unsichtbar'));
   STAGES.forEach((n, i) => {
     const cx = G.X0 + colW * i + colW / 2;
-    s += mapIcon(n, cx - 16, G.Y1 + 6, 32, n);
-    s += `<text x="${cx}" y="${G.Y1 + 58}" font-size="14" text-anchor="middle" fill="#5f5e5a">${esc(n)}</text>`;
+    s += mapIcon(n, cx - 18, G.Y1 + 10, 36, n);
+    s += `<text x="${cx}" y="${G.Y1 + 72}" font-size="24" font-weight="600" text-anchor="middle" fill="${INK}">${esc(n)}</text>`;
   });
-  s += `<text x="${G.X1}" y="${G.Y1 + 84}" font-size="12" text-anchor="end" fill="#5f5e5a">${t('Evolution')} →</text>`;
+  s += `<text x="${G.X1}" y="${G.Y1 + 106}" font-size="20" text-anchor="end" fill="#444">${t('Evolution')} →</text>`;
+  // Verbindungen: kräftig in Blau
   links.forEach(l => {
     const a = by[l.from], b = by[l.to];
-    if (a && b) s += `<line x1="${px(a.x)}" y1="${py(a.y)}" x2="${px(b.x)}" y2="${py(b.y)}" stroke="#888780" stroke-width="1.5"/>`;
+    if (a && b) s += `<line x1="${px(a.x)}" y1="${py(a.y)}" x2="${px(b.x)}" y2="${py(b.y)}" stroke="${BLUE}" stroke-width="4" stroke-linecap="round"/>`;
   });
   nodes.forEach(n => {
     if (n.type !== 'note' && typeof n.evo === 'number' && n.evo > n.x + 0.02) {
-      s += `<line x1="${px(n.x) + 13}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#D85A30" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#${p}-ar)"/>`;
+      s += `<line x1="${px(n.x) + 18}" y1="${py(n.y)}" x2="${px(n.evo)}" y2="${py(n.y)}" stroke="#D85A30" stroke-width="3.5" stroke-dasharray="9 6" stroke-linecap="round" marker-end="url(#${p}-ar)"/>`;
     }
   });
   nodes.forEach(n => {
     const x = px(n.x), y = py(n.y);
     s += `<g data-node="${esc(n.id)}" style="cursor:pointer">`;
     if (n.type === 'note') {
-      const w = Math.max(60, n.name.length * 7.5 + 20);
-      s += `<rect x="${x - w / 2}" y="${y - 14}" width="${w}" height="28" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="1.2"/>`;
-      s += `<text x="${x}" y="${y + 5}" font-size="13" text-anchor="middle" fill="#412402">${esc(n.name)}</text>`;
+      const w = Math.max(90, n.name.length * 11.5 + 28);
+      s += `<rect x="${x - w / 2}" y="${y - 18}" width="${w}" height="36" rx="5" fill="#FAEEDA" stroke="#854F0B" stroke-width="2"/>`;
+      s += `<text x="${x}" y="${y + 7}" font-size="21" text-anchor="middle" fill="#412402">${esc(n.name)}</text>`;
     } else {
       const anchor = n.type === 'anchor';
-      const r = anchor ? 10 : 8;
+      const r = anchor ? 14 : 12;
       const fill = anchor ? '#E1F5EE' : n.build ? '#FAECE7' : '#F1EFE8';
-      const stroke = anchor ? '#0F6E56' : n.build ? '#993C1D' : '#5F5E5A';
-      s += `<circle cx="${x}" cy="${y}" r="18" fill="transparent"/>`;
-      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
-      let lx = x + r + 8, ly = y + 5, anc = 'start';
-      if (n.label === 'left') { lx = x - r - 8; anc = 'end'; }
-      else if (n.label === 'below') { lx = x; ly = y + r + 18; anc = 'middle'; }
-      else if (n.label === 'above') { lx = x; ly = y - r - 8; anc = 'middle'; }
-      s += `<text x="${lx}" y="${ly}" font-size="14" text-anchor="${anc}" fill="#2c2c2a"${anchor ? ' font-weight="600"' : ''}>${esc(n.name)}</text>`;
+      const stroke = anchor ? '#0F6E56' : n.build ? '#993C1D' : '#444441';
+      s += `<circle cx="${x}" cy="${y}" r="24" fill="transparent"/>`;
+      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="3.5"/>`;
+      let lx = x + r + 10, ly = y + 6, anc = 'start';
+      if (n.label === 'left') { lx = x - r - 10; anc = 'end'; }
+      else if (n.label === 'below') { lx = x; ly = y + r + 28; anc = 'middle'; }
+      else if (n.label === 'above') { lx = x; ly = y - r - 10; anc = 'middle'; }
+      s += `<text x="${lx}" y="${ly}" font-size="23" text-anchor="${anc}" fill="${INK}" ${HALO} font-weight="${anchor ? 700 : 500}">${esc(n.name)}</text>`;
     }
     s += '</g>';
-    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="17" fill="none" stroke="#185FA5" stroke-width="2" stroke-dasharray="4 3" pointer-events="none"/>`;
-    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="17" fill="none" stroke="#185FA5" stroke-width="3" pointer-events="none"/>`;
+    if (o.sel === n.id) s += `<circle cx="${x}" cy="${y}" r="23" fill="none" stroke="#185FA5" stroke-width="3" stroke-dasharray="5 4" pointer-events="none"/>`;
+    if (o.linkFrom === n.id) s += `<circle cx="${x}" cy="${y}" r="23" fill="none" stroke="#185FA5" stroke-width="4" pointer-events="none"/>`;
   });
   return s + '</svg>';
 }
@@ -609,6 +614,7 @@ const view = () => $('#view');
 
 /* ---------- Symbole ---------- */
 const ICON = {
+  designer: '<path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19zM14 7l3 3"/>',
   library: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
@@ -681,8 +687,8 @@ function renderLogin() {
 }
 function shell(u) {
   const h = location.hash;
-  const cur = h.startsWith('#/admin') ? 'admin' : h.startsWith('#/profile') ? 'profile' : 'library';
-  const tabs = [['library', 'Library', '#/library']].concat(u.isAdmin ? [['admin', 'Admin', '#/admin']] : [], [['profile', 'Profil', '#/profile']]);
+  const cur = h.startsWith('#/admin') ? 'admin' : h.startsWith('#/profile') ? 'profile' : /^#\/(map|designer)/.test(h) ? 'designer' : 'library';
+  const tabs = [['library', 'Library', '#/library'], ['designer', 'Designer', '#/designer']].concat(u.isAdmin ? [['admin', 'Admin', '#/admin']] : [], [['profile', 'Profil', '#/profile']]);
   $('#app').innerHTML = `<header class="top" id="top"></header><main id="view"></main>
     <nav class="tabbar" aria-label="${t('Hauptnavigation')}"><div class="in">${tabs.map(([k, l, href]) =>
       `<a href="${href}" class="${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''}>${ic(k)}<span>${t(l)}</span></a>`).join('')}</div></nav>`;
@@ -764,12 +770,11 @@ async function viewLibrary() {
       const label = monthLabel(m.updated);
       const head = label !== last ? `<div class="week">${esc(label)}</div>` : '';
       last = label;
-      return head + `<article class="card mapcard">
-      <div class="chead" data-act="open" data-id="${esc(m.id)}"><span class="ctitle">${esc(m.title)}</span>
-        <span class="badge ${m.role === 'viewer' ? 'gray' : ''}">${t(ROLE_LABEL[m.role])}</span>
-        <button class="ibtn flat" data-act="menu" data-id="${esc(m.id)}" aria-label="${t('Weitere Aktionen')}: ${esc(m.title)}" title="${t('Weitere Aktionen')}">${ic('more')}</button></div>
+      return head + `<article class="card mapcard tile">
       <div class="thumb" data-act="open" data-id="${esc(m.id)}">${mapSvg(m.data, { id: 't' + m.id })}</div>
-      <div class="cbody"><div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}</div></div></article>`;
+      <div class="tbody"><div class="trow"><span class="ctitle" data-act="open" data-id="${esc(m.id)}">${esc(m.title)}</span>
+        <button class="ibtn flat" data-act="menu" data-id="${esc(m.id)}" aria-label="${t('Weitere Aktionen')}: ${esc(m.title)}" title="${t('Weitere Aktionen')}">${ic('more')}</button></div>
+        <div class="meta">${esc(m.ownerName)} · ${esc(fmtDate(m.updated))}${m.role === 'viewer' ? ` · ${t(ROLE_LABEL[m.role])}` : ''}</div></div></article>`;
     }).join('');
   };
   draw();
@@ -925,14 +930,26 @@ async function viewAdmin() {
 }
 
 /* ---------- Designer ---------- */
+/* Designer ohne gewählte Map: zuletzt bearbeitete Map öffnen, sonst Hinweis auf die Library */
+async function viewDesignerHome() {
+  let last = null; try { last = localStorage.getItem('wm.lastmap'); } catch (e) { /* ignorieren */ }
+  const maps = await API.listMaps();
+  const m = maps.find(x => x.id === last);
+  if (m) { location.hash = '#/map/' + m.id; return; }
+  setTop(t('Designer'));
+  view().innerHTML = `<div class="card pad empty-designer">${ic('designer', 'big')}<p>${t('Wähle in der Library eine Map aus. Sie öffnet sich dann im Designer, wo du sie bearbeiten kannst.')}</p>
+    <a class="btn primary" href="#/library">${t('Zur Library')}</a></div>`;
+}
+
 async function viewDesigner(id) {
   const m = await API.getMap(id);
+  try { localStorage.setItem('wm.lastmap', id); } catch (e) { /* ignorieren */ }
   const edit = canEdit(m.role);
   let data = sanitize(m.data), title = m.title;
   let sel = null, tool = 'select', linkFrom = null, drag = null, saveT = null, dirty = false, panelKey = '';
   const undo = [], redo = [];
 
-  setTop('', { back: '#/library',
+  setTop('', { back: '#/library', sub: t('Designer'),
     titleHtml: `<input class="title" id="mt" value="${esc(title)}" maxlength="100" ${edit ? '' : 'readonly'} aria-label="${t('Titel')}">`,
     right: `${edit ? '' : `<span class="badge gray">${t('Nur lesen')}</span>`}${iconBtn('mapinfo', 'info', t('Info'))}${iconBtn('more', 'more', t('Weitere Aktionen'))}` });
   view().innerHTML = `<div class="d-toolbar">
@@ -1209,6 +1226,7 @@ async function route() {
   applyWidth();
   try {
     if (parts[0] === 'map' && parts[1]) await viewDesigner(parts[1]);
+    else if (parts[0] === 'designer') await viewDesignerHome();
     else if (parts[0] === 'profile') await viewProfile();
     else if (parts[0] === 'admin') {
       if (!u.isAdmin) { location.hash = '#/library'; return; }
